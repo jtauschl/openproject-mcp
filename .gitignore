@@ -18,7 +18,7 @@ htmlcov/
 # Local credentials and config
 .env
 .mcp.json
-/CLAUDE.md
+/AGENTS.md
 
 # Tool-local state
 .claude/
