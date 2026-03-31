@@ -1,0 +1,2524 @@
+from __future__ import annotations
+
+import re
+from typing import Any, cast
+
+from mcp.server.fastmcp import Context, FastMCP
+
+from .client import (
+    AuthenticationError,
+    InvalidInputError,
+    NotFoundError,
+    OpenProjectClient,
+    OpenProjectError,
+    OpenProjectServerError,
+    PermissionDeniedError,
+    TransportError,
+)
+from .models import (
+    ActionListResult,
+    ActivityListResult,
+    ActivityWriteResult,
+    AttachmentListResult,
+    AttachmentSummary,
+    AttachmentWriteResult,
+    BoardDetail,
+    BoardListResult,
+    BoardWriteResult,
+    CategoryListResult,
+    CategorySummary,
+    CapabilityListResult,
+    CurrentUser,
+    DocumentDetail,
+    DocumentListResult,
+    DocumentWriteResult,
+    FileLinkListResult,
+    FileLinkWriteResult,
+    GridListResult,
+    GridSummary,
+    GridWriteResult,
+    GroupDetail,
+    GroupListResult,
+    GroupWriteResult,
+    InstanceConfiguration,
+    JobStatusDetail,
+    MembershipListResult,
+    MembershipSummary,
+    MembershipWriteResult,
+    NewsDetail,
+    NewsListResult,
+    NewsWriteResult,
+    NotificationListResult,
+    PriorityListResult,
+    PrioritySummary,
+    PrincipalListResult,
+    QueryColumnSummary,
+    QueryFilterInstanceSchemaListResult,
+    QueryFilterInstanceSchemaSummary,
+    QueryFilterSummary,
+    QueryOperatorSummary,
+    QuerySortBySummary,
+    ProjectListResult,
+    ProjectAccessSummary,
+    ProjectAdminContext,
+    ProjectConfiguration,
+    ProjectCopyResult,
+    ProjectPhase,
+    ProjectPhaseDefinition,
+    ProjectPhaseDefinitionListResult,
+    ProjectSummary,
+    ProjectWriteResult,
+    ProjectWorkPackageContext,
+    CustomOptionSummary,
+    HelpTextListResult,
+    HelpTextSummary,
+    NonWorkingDayListResult,
+    RelationListResult,
+    RelationUpdateResult,
+    RelationWriteResult,
+    RenderedText,
+    UserPreferences,
+    UserPreferencesWriteResult,
+    WorkingDayListResult,
+    RoleListResult,
+    StatusListResult,
+    StatusSummary,
+    TimeEntryActivityListResult,
+    TimeEntryListResult,
+    TimeEntrySummary,
+    TimeEntryWriteResult,
+    TypeListResult,
+    TypeSummary,
+    UserDetail,
+    UserListResult,
+    UserWriteResult,
+    ViewDetail,
+    ViewListResult,
+    VersionDetail,
+    VersionListResult,
+    VersionWriteResult,
+    WatcherListResult,
+    WatcherWriteResult,
+    WorkPackageDetail,
+    WorkPackageListResult,
+    WorkPackageWriteResult,
+    WikiPageDetail,
+    WikiPageListResult,
+)
+
+DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+ISO8601_DURATION_RE = re.compile(r"^P(T(?=\d)(\d+H)?(\d+M)?(\d+S)?)$")
+PROJECT_REF_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+RELATION_TYPE_RE = re.compile(r"^(relates|duplicates|duplicated|blocks|blocked|precedes|follows|includes|partof|requires|required)$")
+
+
+def register_tools(mcp: FastMCP) -> None:
+    mcp.tool()(list_projects)
+    mcp.tool()(get_project)
+    mcp.tool()(get_project_admin_context)
+    mcp.tool()(get_project_configuration)
+    mcp.tool()(create_project)
+    mcp.tool()(copy_project)
+    mcp.tool()(get_job_status)
+    mcp.tool()(update_project)
+    mcp.tool()(delete_project)
+    mcp.tool()(list_roles)
+    mcp.tool()(list_principals)
+    mcp.tool()(list_users)
+    mcp.tool()(get_user)
+    mcp.tool()(list_groups)
+    mcp.tool()(get_group)
+    mcp.tool()(list_actions)
+    mcp.tool()(list_capabilities)
+    mcp.tool()(get_query_filter)
+    mcp.tool()(get_query_column)
+    mcp.tool()(get_query_operator)
+    mcp.tool()(get_query_sort_by)
+    mcp.tool()(list_query_filter_instance_schemas)
+    mcp.tool()(get_query_filter_instance_schema)
+    mcp.tool()(list_project_memberships)
+    mcp.tool()(get_membership)
+    mcp.tool()(create_membership)
+    mcp.tool()(update_membership)
+    mcp.tool()(delete_membership)
+    mcp.tool()(get_my_project_access)
+    mcp.tool()(get_instance_configuration)
+    mcp.tool()(list_project_phase_definitions)
+    mcp.tool()(get_project_phase_definition)
+    mcp.tool()(get_project_phase)
+    mcp.tool()(list_views)
+    mcp.tool()(get_view)
+    mcp.tool()(list_documents)
+    mcp.tool()(get_document)
+    mcp.tool()(update_document)
+    mcp.tool()(list_news)
+    mcp.tool()(get_news)
+    mcp.tool()(create_news)
+    mcp.tool()(update_news)
+    mcp.tool()(delete_news)
+    mcp.tool()(get_wiki_page)
+    mcp.tool()(list_wiki_pages)
+    mcp.tool()(list_categories)
+    mcp.tool()(get_category)
+    mcp.tool()(get_project_work_package_context)
+    mcp.tool()(list_work_packages)
+    mcp.tool()(search_work_packages)
+    mcp.tool()(create_work_package)
+    mcp.tool()(create_subtask)
+    mcp.tool()(update_work_package)
+    mcp.tool()(delete_work_package)
+    mcp.tool()(add_work_package_comment)
+    mcp.tool()(create_work_package_relation)
+    mcp.tool()(delete_relation)
+    mcp.tool()(get_work_package)
+    mcp.tool()(get_work_package_relations)
+    mcp.tool()(get_work_package_activities)
+    mcp.tool()(list_my_open_work_packages)
+    mcp.tool()(list_versions)
+    mcp.tool()(get_version)
+    mcp.tool()(create_version)
+    mcp.tool()(update_version)
+    mcp.tool()(delete_version)
+    mcp.tool()(list_boards)
+    mcp.tool()(get_board)
+    mcp.tool()(create_board)
+    mcp.tool()(update_board)
+    mcp.tool()(delete_board)
+    mcp.tool()(list_work_package_attachments)
+    mcp.tool()(get_attachment)
+    mcp.tool()(create_work_package_attachment)
+    mcp.tool()(delete_attachment)
+    mcp.tool()(list_time_entry_activities)
+    mcp.tool()(list_time_entries)
+    mcp.tool()(get_time_entry)
+    mcp.tool()(create_time_entry)
+    mcp.tool()(update_time_entry)
+    mcp.tool()(delete_time_entry)
+    mcp.tool()(get_current_user)
+    mcp.tool()(list_statuses)
+    mcp.tool()(get_status)
+    mcp.tool()(list_priorities)
+    mcp.tool()(get_priority)
+    mcp.tool()(list_types)
+    mcp.tool()(get_type)
+    mcp.tool()(list_work_package_watchers)
+    mcp.tool()(add_work_package_watcher)
+    mcp.tool()(remove_work_package_watcher)
+    mcp.tool()(list_notifications)
+    mcp.tool()(mark_notification_read)
+    mcp.tool()(mark_all_notifications_read)
+    mcp.tool()(create_user)
+    mcp.tool()(update_user)
+    mcp.tool()(delete_user)
+    mcp.tool()(lock_user)
+    mcp.tool()(unlock_user)
+    mcp.tool()(create_group)
+    mcp.tool()(update_group)
+    mcp.tool()(delete_group)
+    mcp.tool()(list_work_package_file_links)
+    mcp.tool()(delete_file_link)
+    mcp.tool()(list_grids)
+    mcp.tool()(get_grid)
+    mcp.tool()(create_grid)
+    mcp.tool()(get_my_preferences)
+    mcp.tool()(update_my_preferences)
+    mcp.tool()(render_text)
+    mcp.tool()(list_help_texts)
+    mcp.tool()(get_help_text)
+    mcp.tool()(list_working_days)
+    mcp.tool()(list_non_working_days)
+    mcp.tool()(get_custom_option)
+    mcp.tool()(list_relations)
+    mcp.tool()(update_relation)
+
+
+async def list_projects(
+    ctx: Context,
+    search: str | None = None,
+    offset: int = 1,
+    limit: int | None = None,
+) -> ProjectListResult:
+    """List visible projects with optional name or identifier search."""
+    client = _client_from_context(ctx)
+    safe_search = _validate_optional_query(search, field_name="search", max_length=100)
+    safe_offset = _validate_offset(offset)
+    safe_limit = _validate_limit(limit)
+    return await _run_tool(
+        client.list_projects(search=safe_search, offset=safe_offset, limit=safe_limit)
+    )
+
+
+async def get_project(
+    ctx: Context,
+    project: str,
+) -> ProjectSummary:
+    """Get a compact project summary by id or identifier."""
+    client = _client_from_context(ctx)
+    safe_project = _validate_project_ref(project)
+    return await _run_tool(client.get_project(safe_project))
+
+
+async def get_project_admin_context(
+    ctx: Context,
+    project: str,
+) -> ProjectAdminContext:
+    """Return project admin metadata such as lifecycle statuses, parent options, and writable fields."""
+    client = _client_from_context(ctx)
+    safe_project = _validate_project_ref(project)
+    return await _run_tool(client.get_project_admin_context(safe_project))
+
+
+async def get_project_configuration(
+    ctx: Context,
+    project: str,
+) -> ProjectConfiguration:
+    """Return project-scoped configuration such as internal comment support."""
+    client = _client_from_context(ctx)
+    safe_project = _validate_project_ref(project)
+    return await _run_tool(client.get_project_configuration(safe_project))
+
+
+async def create_project(
+    ctx: Context,
+    name: str,
+    identifier: str,
+    description: str | None = None,
+    public: bool | None = None,
+    active: bool | None = None,
+    status: str | None = None,
+    status_explanation: str | None = None,
+    parent: str | None = None,
+    confirm: bool = False,
+) -> ProjectWriteResult:
+    """Prepare or create a project."""
+    client = _client_from_context(ctx)
+    safe_name = _validate_required_query(name, field_name="name", max_length=255)
+    safe_identifier = _validate_project_identifier(identifier)
+    safe_description = _validate_optional_text(description, field_name="description", max_length=10_000)
+    safe_status = _validate_optional_query(status, field_name="status", max_length=100)
+    safe_status_explanation = _validate_optional_text(status_explanation, field_name="status_explanation", max_length=10_000)
+    safe_parent = _validate_optional_project_ref(parent)
+    return await _run_tool(
+        client.create_project(
+            name=safe_name,
+            identifier=safe_identifier,
+            description=safe_description,
+            public=public,
+            active=active,
+            status=safe_status,
+            status_explanation=safe_status_explanation,
+            parent=safe_parent,
+            confirm=confirm,
+        )
+    )
+
+
+async def copy_project(
+    ctx: Context,
+    source_project: str,
+    name: str,
+    identifier: str,
+    description: str | None = None,
+    public: bool | None = None,
+    active: bool | None = None,
+    status: str | None = None,
+    status_explanation: str | None = None,
+    parent: str | None = None,
+    confirm: bool = False,
+) -> ProjectCopyResult:
+    """Prepare or copy an existing project into a new project."""
+    client = _client_from_context(ctx)
+    safe_source_project = _validate_project_ref(source_project)
+    safe_name = _validate_required_query(name, field_name="name", max_length=255)
+    safe_identifier = _validate_project_identifier(identifier)
+    safe_description = _validate_optional_text(description, field_name="description", max_length=10_000)
+    safe_status = _validate_optional_query(status, field_name="status", max_length=100)
+    safe_status_explanation = _validate_optional_text(status_explanation, field_name="status_explanation", max_length=10_000)
+    safe_parent = _validate_optional_project_ref(parent)
+    return await _run_tool(
+        client.copy_project(
+            source_project=safe_source_project,
+            name=safe_name,
+            identifier=safe_identifier,
+            description=safe_description,
+            public=public,
+            active=active,
+            status=safe_status,
+            status_explanation=safe_status_explanation,
+            parent=safe_parent,
+            confirm=confirm,
+        )
+    )
+
+
+async def get_job_status(
+    ctx: Context,
+    job_status_id: int,
+) -> JobStatusDetail:
+    """Get the current status of a background job such as project copy."""
+    client = _client_from_context(ctx)
+    safe_id = _validate_positive_int(job_status_id, field_name="job_status_id")
+    return await _run_tool(client.get_job_status(safe_id))
+
+
+async def update_project(
+    ctx: Context,
+    project: str,
+    name: str | None = None,
+    identifier: str | None = None,
+    description: str | None = None,
+    public: bool | None = None,
+    active: bool | None = None,
+    status: str | None = None,
+    status_explanation: str | None = None,
+    parent: str | None = None,
+    confirm: bool = False,
+) -> ProjectWriteResult:
+    """Prepare or update a project."""
+    client = _client_from_context(ctx)
+    safe_project = _validate_project_ref(project)
+    safe_name = _validate_optional_query(name, field_name="name", max_length=255)
+    safe_identifier = _validate_optional_project_identifier(identifier)
+    safe_description = _validate_optional_text(description, field_name="description", max_length=10_000)
+    safe_status = _validate_optional_query(status, field_name="status", max_length=100)
+    safe_status_explanation = _validate_optional_text(status_explanation, field_name="status_explanation", max_length=10_000)
+    safe_parent = _validate_optional_project_ref(parent)
+    if not any(value is not None for value in (safe_name, safe_identifier, safe_description, public, active, safe_status, safe_status_explanation, safe_parent)):
+        raise ValueError("At least one field to update is required.")
+    return await _run_tool(
+        client.update_project(
+            project_ref=safe_project,
+            name=safe_name,
+            identifier=safe_identifier,
+            description=safe_description,
+            public=public,
+            active=active,
+            status=safe_status,
+            status_explanation=safe_status_explanation,
+            parent=safe_parent,
+            confirm=confirm,
+        )
+    )
+
+
+async def delete_project(
+    ctx: Context,
+    project: str,
+    confirm: bool = False,
+) -> ProjectWriteResult:
+    """Prepare or delete a project."""
+    client = _client_from_context(ctx)
+    safe_project = _validate_project_ref(project)
+    return await _run_tool(client.delete_project(project_ref=safe_project, confirm=confirm))
+
+
+async def list_roles(ctx: Context) -> RoleListResult:
+    """List OpenProject roles visible to the current user."""
+    client = _client_from_context(ctx)
+    return await _run_tool(client.list_roles())
+
+
+async def list_principals(
+    ctx: Context,
+    search: str | None = None,
+    offset: int = 1,
+    limit: int | None = None,
+) -> PrincipalListResult:
+    """List users and groups that can be used for project memberships."""
+    client = _client_from_context(ctx)
+    safe_search = _validate_optional_query(search, field_name="search", max_length=100)
+    safe_offset = _validate_offset(offset)
+    safe_limit = _validate_limit(limit)
+    return await _run_tool(client.list_principals(search=safe_search, offset=safe_offset, limit=safe_limit))
+
+
+async def list_users(
+    ctx: Context,
+    search: str | None = None,
+    offset: int = 1,
+    limit: int | None = None,
+) -> UserListResult:
+    """List users visible to the current token."""
+    client = _client_from_context(ctx)
+    safe_search = _validate_optional_query(search, field_name="search", max_length=100)
+    safe_offset = _validate_offset(offset)
+    safe_limit = _validate_limit(limit)
+    return await _run_tool(client.list_users(search=safe_search, offset=safe_offset, limit=safe_limit))
+
+
+async def get_user(
+    ctx: Context,
+    user: str,
+) -> UserDetail:
+    """Get a user by id, login, or `me` when supported by OpenProject."""
+    client = _client_from_context(ctx)
+    safe_user = _validate_required_query(user, field_name="user", max_length=100)
+    return await _run_tool(client.get_user(safe_user))
+
+
+async def list_groups(
+    ctx: Context,
+    search: str | None = None,
+    offset: int = 1,
+    limit: int | None = None,
+) -> GroupListResult:
+    """List groups visible to the current token."""
+    client = _client_from_context(ctx)
+    safe_search = _validate_optional_query(search, field_name="search", max_length=100)
+    safe_offset = _validate_offset(offset)
+    safe_limit = _validate_limit(limit)
+    return await _run_tool(client.list_groups(search=safe_search, offset=safe_offset, limit=safe_limit))
+
+
+async def get_group(
+    ctx: Context,
+    group_id: int,
+) -> GroupDetail:
+    """Get a single group by id."""
+    client = _client_from_context(ctx)
+    safe_group_id = _validate_positive_int(group_id, field_name="group_id")
+    return await _run_tool(client.get_group(safe_group_id))
+
+
+async def list_actions(
+    ctx: Context,
+    offset: int = 1,
+    limit: int | None = None,
+) -> ActionListResult:
+    """List API actions exposed by OpenProject."""
+    client = _client_from_context(ctx)
+    safe_offset = _validate_offset(offset)
+    safe_limit = _validate_limit(limit)
+    return await _run_tool(client.list_actions(offset=safe_offset, limit=safe_limit))
+
+
+async def list_capabilities(
+    ctx: Context,
+    project: str | None = None,
+    capability_id: str | None = None,
+    offset: int = 1,
+    limit: int | None = None,
+) -> CapabilityListResult:
+    """List API capabilities exposed by OpenProject."""
+    client = _client_from_context(ctx)
+    safe_project = _validate_optional_project_ref(project)
+    safe_capability_id = _validate_optional_query(capability_id, field_name="capability_id", max_length=100)
+    safe_offset = _validate_offset(offset)
+    safe_limit = _validate_limit(limit)
+    return await _run_tool(
+        client.list_capabilities(
+            project=safe_project,
+            capability_id=safe_capability_id,
+            offset=safe_offset,
+            limit=safe_limit,
+        )
+    )
+
+
+async def get_query_filter(
+    ctx: Context,
+    filter_id: str,
+) -> QueryFilterSummary:
+    """Get a single query filter by id."""
+    client = _client_from_context(ctx)
+    safe_filter_id = _validate_required_query(filter_id, field_name="filter_id", max_length=100)
+    return await _run_tool(client.get_query_filter(safe_filter_id))
+
+
+async def get_query_column(
+    ctx: Context,
+    column_id: str,
+) -> QueryColumnSummary:
+    """Get a single query column by id."""
+    client = _client_from_context(ctx)
+    safe_column_id = _validate_required_query(column_id, field_name="column_id", max_length=100)
+    return await _run_tool(client.get_query_column(safe_column_id))
+
+
+async def get_query_operator(
+    ctx: Context,
+    operator_id: str,
+) -> QueryOperatorSummary:
+    """Get a single query operator by id."""
+    client = _client_from_context(ctx)
+    safe_operator_id = _validate_required_query(operator_id, field_name="operator_id", max_length=100)
+    return await _run_tool(client.get_query_operator(safe_operator_id))
+
+
+async def get_query_sort_by(
+    ctx: Context,
+    sort_by_id: str,
+) -> QuerySortBySummary:
+    """Get a single query sort-by definition by id."""
+    client = _client_from_context(ctx)
+    safe_sort_by_id = _validate_required_query(sort_by_id, field_name="sort_by_id", max_length=100)
+    return await _run_tool(client.get_query_sort_by(safe_sort_by_id))
+
+
+async def list_query_filter_instance_schemas(
+    ctx: Context,
+    project: str | None = None,
+) -> QueryFilterInstanceSchemaListResult:
+    """List query filter instance schemas globally or for a project."""
+    client = _client_from_context(ctx)
+    safe_project = _validate_optional_project_ref(project)
+    return await _run_tool(client.list_query_filter_instance_schemas(project=safe_project))
+
+
+async def get_query_filter_instance_schema(
+    ctx: Context,
+    schema_id: str,
+) -> QueryFilterInstanceSchemaSummary:
+    """Get a single query filter instance schema by id."""
+    client = _client_from_context(ctx)
+    safe_schema_id = _validate_required_query(schema_id, field_name="schema_id", max_length=100)
+    return await _run_tool(client.get_query_filter_instance_schema(safe_schema_id))
+
+
+async def list_project_memberships(
+    ctx: Context,
+    project: str,
+) -> MembershipListResult:
+    """List memberships for a project, including principal and role names."""
+    client = _client_from_context(ctx)
+    safe_project = _validate_project_ref(project)
+    return await _run_tool(client.list_project_memberships(safe_project))
+
+
+async def get_membership(
+    ctx: Context,
+    membership_id: int,
+) -> MembershipSummary:
+    """Get a compact membership summary by id."""
+    client = _client_from_context(ctx)
+    safe_id = _validate_positive_int(membership_id, field_name="membership_id")
+    return await _run_tool(client.get_membership(safe_id))
+
+
+async def create_membership(
+    ctx: Context,
+    project: str,
+    principal: str,
+    roles: list[str],
+    notification_message: str | None = None,
+    confirm: bool = False,
+) -> MembershipWriteResult:
+    """Prepare or create a project membership."""
+    client = _client_from_context(ctx)
+    safe_project = _validate_project_ref(project)
+    safe_principal = _validate_required_query(principal, field_name="principal", max_length=255)
+    safe_roles = _validate_required_string_list(roles, field_name="roles", max_items=20, item_max_length=100)
+    safe_notification_message = _validate_optional_text(notification_message, field_name="notification_message", max_length=10_000)
+    return await _run_tool(
+        client.create_membership(
+            project=safe_project,
+            principal=safe_principal,
+            roles=safe_roles,
+            notification_message=safe_notification_message,
+            confirm=confirm,
+        )
+    )
+
+
+async def update_membership(
+    ctx: Context,
+    membership_id: int,
+    roles: list[str],
+    notification_message: str | None = None,
+    confirm: bool = False,
+) -> MembershipWriteResult:
+    """Prepare or update a project membership."""
+    client = _client_from_context(ctx)
+    safe_id = _validate_positive_int(membership_id, field_name="membership_id")
+    safe_roles = _validate_required_string_list(roles, field_name="roles", max_items=20, item_max_length=100)
+    safe_notification_message = _validate_optional_text(notification_message, field_name="notification_message", max_length=10_000)
+    return await _run_tool(
+        client.update_membership(
+            membership_id=safe_id,
+            roles=safe_roles,
+            notification_message=safe_notification_message,
+            confirm=confirm,
+        )
+    )
+
+
+async def delete_membership(
+    ctx: Context,
+    membership_id: int,
+    confirm: bool = False,
+) -> MembershipWriteResult:
+    """Prepare or delete a project membership."""
+    client = _client_from_context(ctx)
+    safe_id = _validate_positive_int(membership_id, field_name="membership_id")
+    return await _run_tool(client.delete_membership(membership_id=safe_id, confirm=confirm))
+
+
+async def get_my_project_access(
+    ctx: Context,
+    project: str,
+) -> ProjectAccessSummary:
+    """Return the current user's membership and inferred access hints for a project."""
+    client = _client_from_context(ctx)
+    safe_project = _validate_project_ref(project)
+    return await _run_tool(client.get_my_project_access(safe_project))
+
+
+async def get_instance_configuration(ctx: Context) -> InstanceConfiguration:
+    """Return instance-level OpenProject configuration and active feature flags."""
+    client = _client_from_context(ctx)
+    return await _run_tool(client.get_instance_configuration())
+
+
+async def list_project_phase_definitions(ctx: Context) -> ProjectPhaseDefinitionListResult:
+    """List available project lifecycle phase definitions exposed by OpenProject."""
+    client = _client_from_context(ctx)
+    return await _run_tool(client.list_project_phase_definitions())
+
+
+async def get_project_phase_definition(
+    ctx: Context,
+    phase_definition_id: int,
+) -> ProjectPhaseDefinition:
+    """Get a single project lifecycle phase definition by id."""
+    client = _client_from_context(ctx)
+    safe_id = _validate_positive_int(phase_definition_id, field_name="phase_definition_id")
+    return await _run_tool(client.get_project_phase_definition(safe_id))
+
+
+async def get_project_phase(
+    ctx: Context,
+    phase_id: int,
+) -> ProjectPhase:
+    """Get a single project lifecycle phase by id."""
+    client = _client_from_context(ctx)
+    safe_id = _validate_positive_int(phase_id, field_name="phase_id")
+    return await _run_tool(client.get_project_phase(safe_id))
+
+
+async def list_views(
+    ctx: Context,
+    project: str | None = None,
+    type: str | None = None,
+    offset: int = 1,
+    limit: int | None = None,
+) -> ViewListResult:
+    """List saved OpenProject views, optionally filtered by project or view subtype."""
+    client = _client_from_context(ctx)
+    safe_project = _validate_optional_project_ref(project)
+    safe_type = _validate_optional_query(type, field_name="type", max_length=120)
+    safe_offset = _validate_offset(offset)
+    safe_limit = _validate_limit(limit)
+    return await _run_tool(
+        client.list_views(
+            project=safe_project,
+            view_type=safe_type,
+            offset=safe_offset,
+            limit=safe_limit,
+        )
+    )
+
+
+async def get_view(
+    ctx: Context,
+    view_id: int,
+) -> ViewDetail:
+    """Get a single OpenProject view by id."""
+    client = _client_from_context(ctx)
+    safe_id = _validate_positive_int(view_id, field_name="view_id")
+    return await _run_tool(client.get_view(safe_id))
+
+
+async def list_documents(
+    ctx: Context,
+    project: str | None = None,
+    offset: int = 1,
+    limit: int | None = None,
+) -> DocumentListResult:
+    """List documents, optionally filtered to a single project."""
+    client = _client_from_context(ctx)
+    safe_project = _validate_optional_project_ref(project)
+    safe_offset = _validate_offset(offset)
+    safe_limit = _validate_limit(limit)
+    return await _run_tool(client.list_documents(project=safe_project, offset=safe_offset, limit=safe_limit))
+
+
+async def get_document(
+    ctx: Context,
+    document_id: int,
+) -> DocumentDetail:
+    """Get a single document by id."""
+    client = _client_from_context(ctx)
+    safe_id = _validate_positive_int(document_id, field_name="document_id")
+    return await _run_tool(client.get_document(safe_id))
+
+
+async def update_document(
+    ctx: Context,
+    document_id: int,
+    title: str | None = None,
+    description: str | None = None,
+    confirm: bool = False,
+) -> DocumentWriteResult:
+    """Prepare or update a document."""
+    client = _client_from_context(ctx)
+    safe_id = _validate_positive_int(document_id, field_name="document_id")
+    safe_title = _validate_optional_query(title, field_name="title", max_length=255)
+    safe_description = _validate_optional_text(description, field_name="description", max_length=10_000)
+    if not any(value is not None for value in (safe_title, safe_description)):
+        raise ValueError("At least one field to update is required.")
+    return await _run_tool(
+        client.update_document(
+            document_id=safe_id,
+            title=safe_title,
+            description=safe_description,
+            confirm=confirm,
+        )
+    )
+
+
+async def list_news(
+    ctx: Context,
+    project: str | None = None,
+    search: str | None = None,
+    offset: int = 1,
+    limit: int | None = None,
+) -> NewsListResult:
+    """List news entries, optionally filtered by project or title/summary search."""
+    client = _client_from_context(ctx)
+    safe_project = _validate_optional_project_ref(project)
+    safe_search = _validate_optional_query(search, field_name="search", max_length=100)
+    safe_offset = _validate_offset(offset)
+    safe_limit = _validate_limit(limit)
+    return await _run_tool(
+        client.list_news(
+            project=safe_project,
+            search=safe_search,
+            offset=safe_offset,
+            limit=safe_limit,
+        )
+    )
+
+
+async def get_news(
+    ctx: Context,
+    news_id: int,
+) -> NewsDetail:
+    """Get a single news entry by id."""
+    client = _client_from_context(ctx)
+    safe_id = _validate_positive_int(news_id, field_name="news_id")
+    return await _run_tool(client.get_news(safe_id))
+
+
+async def create_news(
+    ctx: Context,
+    project: str,
+    title: str,
+    summary: str | None = None,
+    description: str | None = None,
+    confirm: bool = False,
+) -> NewsWriteResult:
+    """Prepare or create a news entry inside a project."""
+    client = _client_from_context(ctx)
+    safe_project = _validate_project_ref(project)
+    safe_title = _validate_required_query(title, field_name="title", max_length=255)
+    safe_summary = _validate_optional_text(summary, field_name="summary", max_length=500)
+    safe_description = _validate_optional_text(description, field_name="description", max_length=10_000)
+    return await _run_tool(
+        client.create_news(
+            project=safe_project,
+            title=safe_title,
+            summary=safe_summary,
+            description=safe_description,
+            confirm=confirm,
+        )
+    )
+
+
+async def update_news(
+    ctx: Context,
+    news_id: int,
+    title: str | None = None,
+    summary: str | None = None,
+    description: str | None = None,
+    confirm: bool = False,
+) -> NewsWriteResult:
+    """Prepare or update a news entry."""
+    client = _client_from_context(ctx)
+    safe_id = _validate_positive_int(news_id, field_name="news_id")
+    safe_title = _validate_optional_query(title, field_name="title", max_length=255)
+    safe_summary = _validate_optional_text(summary, field_name="summary", max_length=500)
+    safe_description = _validate_optional_text(description, field_name="description", max_length=10_000)
+    if not any(value is not None for value in (safe_title, safe_summary, safe_description)):
+        raise ValueError("At least one field to update is required.")
+    return await _run_tool(
+        client.update_news(
+            news_id=safe_id,
+            title=safe_title,
+            summary=safe_summary,
+            description=safe_description,
+            confirm=confirm,
+        )
+    )
+
+
+async def delete_news(
+    ctx: Context,
+    news_id: int,
+    confirm: bool = False,
+) -> NewsWriteResult:
+    """Prepare or delete a news entry."""
+    client = _client_from_context(ctx)
+    safe_id = _validate_positive_int(news_id, field_name="news_id")
+    return await _run_tool(client.delete_news(news_id=safe_id, confirm=confirm))
+
+
+async def get_wiki_page(
+    ctx: Context,
+    wiki_page_id: int,
+) -> WikiPageDetail:
+    """Get a single wiki page by id."""
+    client = _client_from_context(ctx)
+    safe_id = _validate_positive_int(wiki_page_id, field_name="wiki_page_id")
+    return await _run_tool(client.get_wiki_page(safe_id))
+
+
+async def list_wiki_pages(
+    ctx: Context,
+    project: str,
+) -> WikiPageListResult:
+    """List all wiki pages in a project."""
+    client = _client_from_context(ctx)
+    safe_project = _validate_project_ref(project)
+    return await _run_tool(client.list_wiki_pages(safe_project))
+
+
+
+
+
+async def list_categories(
+    ctx: Context,
+    project: str,
+) -> CategoryListResult:
+    """List work-package categories configured for a project."""
+    client = _client_from_context(ctx)
+    safe_project = _validate_project_ref(project)
+    return await _run_tool(client.list_categories(safe_project))
+
+
+async def get_category(
+    ctx: Context,
+    project: str,
+    category_id: int,
+) -> CategorySummary:
+    """Get a single category from a project's category list."""
+    client = _client_from_context(ctx)
+    safe_project = _validate_project_ref(project)
+    safe_id = _validate_positive_int(category_id, field_name="category_id")
+    return await _run_tool(client.get_category(project_ref=safe_project, category_id=safe_id))
+
+
+async def get_project_work_package_context(
+    ctx: Context,
+    project: str,
+    type: str | None = None,
+) -> ProjectWorkPackageContext:
+    """Return project metadata and, optionally, the writable work-package schema for a given type."""
+    client = _client_from_context(ctx)
+    safe_project = _validate_project_ref(project)
+    safe_type = _validate_optional_query(type, field_name="type", max_length=100)
+    return await _run_tool(client.get_project_work_package_context(project=safe_project, type=safe_type))
+
+
+async def search_work_packages(
+    ctx: Context,
+    query: str,
+    project: str | None = None,
+    status: str | None = None,
+    open_only: bool = False,
+    assignee_me: bool = False,
+    offset: int = 1,
+    limit: int | None = None,
+) -> WorkPackageListResult:
+    """Search work packages by free text, optionally scoped to a project.
+
+    Set status to restrict results to a specific OpenProject status.
+    Set open_only=true to return only open work packages.
+    Set assignee_me=true to return only work packages assigned to the current user.
+    """
+    client = _client_from_context(ctx)
+    safe_query = _validate_required_query(query, field_name="query", max_length=120)
+    safe_project = _validate_optional_project_ref(project)
+    safe_status = _validate_optional_query(status, field_name="status", max_length=100)
+    safe_offset = _validate_offset(offset)
+    safe_limit = _validate_limit(limit)
+    return await _run_tool(
+        client.search_work_packages(
+            query=safe_query,
+            project=safe_project,
+            status=safe_status,
+            open_only=open_only,
+            assignee_me=assignee_me,
+            offset=safe_offset,
+            limit=safe_limit,
+        )
+    )
+
+
+async def list_work_packages(
+    ctx: Context,
+    project: str | None = None,
+    type: str | None = None,
+    version: str | None = None,
+    open_only: bool = False,
+    assignee_me: bool = False,
+    has_description: bool | None = None,
+    offset: int = 1,
+    limit: int | None = None,
+) -> WorkPackageListResult:
+    """List work packages with structured filters and no free-text query requirement."""
+    client = _client_from_context(ctx)
+    safe_project = _validate_optional_project_ref(project)
+    safe_type = _validate_optional_query(type, field_name="type", max_length=100)
+    safe_version = _validate_optional_query(version, field_name="version", max_length=100)
+    safe_offset = _validate_offset(offset)
+    safe_limit = _validate_limit(limit)
+    return await _run_tool(
+        client.list_work_packages(
+            project=safe_project,
+            type=safe_type,
+            version=safe_version,
+            open_only=open_only,
+            assignee_me=assignee_me,
+            has_description=has_description,
+            offset=safe_offset,
+            limit=safe_limit,
+        )
+    )
+
+
+async def get_work_package(
+    ctx: Context,
+    work_package_id: int,
+) -> WorkPackageDetail:
+    """Get a compact work package summary by id."""
+    client = _client_from_context(ctx)
+    safe_id = _validate_positive_int(work_package_id, field_name="work_package_id")
+    return await _run_tool(client.get_work_package(safe_id))
+
+
+async def create_work_package(
+    ctx: Context,
+    project: str,
+    type: str,
+    subject: str,
+    description: str | None = None,
+    version: str | None = None,
+    project_phase: str | None = None,
+    assignee: str | None = None,
+    responsible: str | None = None,
+    priority: str | None = None,
+    category: str | None = None,
+    custom_fields: dict[str, Any] | None = None,
+    start_date: str | None = None,
+    due_date: str | None = None,
+    confirm: bool = False,
+) -> WorkPackageWriteResult:
+    """Prepare or create a work package.
+
+    The tool validates the payload first. Set confirm=true to write, or enable OPENPROJECT_AUTO_CONFIRM_WRITE to skip confirmation.
+    assignee accepts a numeric user id or 'me'.
+    """
+    client = _client_from_context(ctx)
+    safe_project = _validate_project_ref(project)
+    safe_type = _validate_required_query(type, field_name="type", max_length=100)
+    safe_subject = _validate_required_query(subject, field_name="subject", max_length=255)
+    safe_description = _validate_optional_text(description, field_name="description", max_length=10_000)
+    safe_version = _validate_optional_query(version, field_name="version", max_length=100)
+    safe_project_phase = _validate_optional_query(project_phase, field_name="project_phase", max_length=100)
+    safe_assignee = _validate_optional_user_ref(assignee)
+    safe_responsible = _validate_optional_user_ref(responsible)
+    safe_priority = _validate_optional_query(priority, field_name="priority", max_length=100)
+    safe_category = _validate_optional_query(category, field_name="category", max_length=100)
+    safe_custom_fields = _validate_optional_custom_fields(custom_fields)
+    safe_start_date = _validate_optional_date(start_date, field_name="start_date")
+    safe_due_date = _validate_optional_date(due_date, field_name="due_date")
+    return await _run_tool(
+        client.create_work_package(
+            project=safe_project,
+            type=safe_type,
+            subject=safe_subject,
+            description=safe_description,
+            version=safe_version,
+            project_phase=safe_project_phase,
+            assignee=safe_assignee,
+            responsible=safe_responsible,
+            priority=safe_priority,
+            category=safe_category,
+            custom_fields=safe_custom_fields,
+            start_date=safe_start_date,
+            due_date=safe_due_date,
+            confirm=confirm,
+        )
+    )
+
+
+async def update_work_package(
+    ctx: Context,
+    work_package_id: int,
+    subject: str | None = None,
+    description: str | None = None,
+    type: str | None = None,
+    version: str | None = None,
+    project_phase: str | None = None,
+    status: str | None = None,
+    assignee: str | None = None,
+    responsible: str | None = None,
+    priority: str | None = None,
+    category: str | None = None,
+    custom_fields: dict[str, Any] | None = None,
+    start_date: str | None = None,
+    due_date: str | None = None,
+    confirm: bool = False,
+) -> WorkPackageWriteResult:
+    """Prepare or update a work package.
+
+    The tool validates the patch first. Set confirm=true to write, or enable OPENPROJECT_AUTO_CONFIRM_WRITE to skip confirmation.
+    assignee accepts a numeric user id or 'me'. Omitted fields stay unchanged.
+    """
+    client = _client_from_context(ctx)
+    safe_id = _validate_positive_int(work_package_id, field_name="work_package_id")
+    safe_subject = _validate_optional_query(subject, field_name="subject", max_length=255)
+    safe_description = _validate_optional_text(description, field_name="description", max_length=10_000)
+    safe_type = _validate_optional_query(type, field_name="type", max_length=100)
+    safe_version = _validate_optional_query(version, field_name="version", max_length=100)
+    safe_project_phase = _validate_optional_query(project_phase, field_name="project_phase", max_length=100)
+    safe_status = _validate_optional_query(status, field_name="status", max_length=100)
+    safe_assignee = _validate_optional_user_ref(assignee)
+    safe_responsible = _validate_optional_user_ref(responsible)
+    safe_priority = _validate_optional_query(priority, field_name="priority", max_length=100)
+    safe_category = _validate_optional_query(category, field_name="category", max_length=100)
+    safe_custom_fields = _validate_optional_custom_fields(custom_fields)
+    safe_start_date = _validate_optional_date(start_date, field_name="start_date")
+    safe_due_date = _validate_optional_date(due_date, field_name="due_date")
+    if not any(
+        value is not None
+        for value in (
+            safe_subject,
+            safe_description,
+            safe_type,
+            safe_version,
+            safe_project_phase,
+            safe_status,
+            safe_assignee,
+            safe_responsible,
+            safe_priority,
+            safe_category,
+            safe_custom_fields,
+            safe_start_date,
+            safe_due_date,
+        )
+    ):
+        raise ValueError("At least one field to update is required.")
+    return await _run_tool(
+        client.update_work_package(
+            work_package_id=safe_id,
+            subject=safe_subject,
+            description=safe_description,
+            type=safe_type,
+            version=safe_version,
+            project_phase=safe_project_phase,
+            status=safe_status,
+            assignee=safe_assignee,
+            responsible=safe_responsible,
+            priority=safe_priority,
+            category=safe_category,
+            custom_fields=safe_custom_fields,
+            start_date=safe_start_date,
+            due_date=safe_due_date,
+            confirm=confirm,
+        )
+    )
+
+
+async def delete_work_package(
+    ctx: Context,
+    work_package_id: int,
+    confirm: bool = False,
+) -> WorkPackageWriteResult:
+    """Prepare or delete a work package.
+
+    The tool previews the target first. Set confirm=true to delete, or enable OPENPROJECT_AUTO_CONFIRM_WRITE to skip confirmation.
+    """
+    client = _client_from_context(ctx)
+    safe_id = _validate_positive_int(work_package_id, field_name="work_package_id")
+    return await _run_tool(client.delete_work_package(work_package_id=safe_id, confirm=confirm))
+
+
+async def create_subtask(
+    ctx: Context,
+    parent_work_package_id: int,
+    type: str,
+    subject: str,
+    description: str | None = None,
+    version: str | None = None,
+    project_phase: str | None = None,
+    assignee: str | None = None,
+    responsible: str | None = None,
+    priority: str | None = None,
+    category: str | None = None,
+    custom_fields: dict[str, Any] | None = None,
+    start_date: str | None = None,
+    due_date: str | None = None,
+    confirm: bool = False,
+) -> WorkPackageWriteResult:
+    """Prepare or create a subtask under an existing work package.
+
+    The tool validates the payload first. Set confirm=true to write, or enable OPENPROJECT_AUTO_CONFIRM_WRITE to skip confirmation.
+    """
+    client = _client_from_context(ctx)
+    safe_parent_id = _validate_positive_int(parent_work_package_id, field_name="parent_work_package_id")
+    safe_type = _validate_required_query(type, field_name="type", max_length=100)
+    safe_subject = _validate_required_query(subject, field_name="subject", max_length=255)
+    safe_description = _validate_optional_text(description, field_name="description", max_length=10_000)
+    safe_version = _validate_optional_query(version, field_name="version", max_length=100)
+    safe_project_phase = _validate_optional_query(project_phase, field_name="project_phase", max_length=100)
+    safe_assignee = _validate_optional_user_ref(assignee)
+    safe_responsible = _validate_optional_user_ref(responsible)
+    safe_priority = _validate_optional_query(priority, field_name="priority", max_length=100)
+    safe_category = _validate_optional_query(category, field_name="category", max_length=100)
+    safe_custom_fields = _validate_optional_custom_fields(custom_fields)
+    safe_start_date = _validate_optional_date(start_date, field_name="start_date")
+    safe_due_date = _validate_optional_date(due_date, field_name="due_date")
+    return await _run_tool(
+        client.create_subtask(
+            parent_work_package_id=safe_parent_id,
+            type=safe_type,
+            subject=safe_subject,
+            description=safe_description,
+            version=safe_version,
+            project_phase=safe_project_phase,
+            assignee=safe_assignee,
+            responsible=safe_responsible,
+            priority=safe_priority,
+            category=safe_category,
+            custom_fields=safe_custom_fields,
+            start_date=safe_start_date,
+            due_date=safe_due_date,
+            confirm=confirm,
+        )
+    )
+
+
+async def add_work_package_comment(
+    ctx: Context,
+    work_package_id: int,
+    comment: str,
+    internal: bool = False,
+    notify: bool = False,
+    confirm: bool = False,
+) -> ActivityWriteResult:
+    """Prepare or add a comment to a work package.
+
+    The tool only writes when confirm=true. notify=false avoids change emails by default.
+    """
+    client = _client_from_context(ctx)
+    safe_id = _validate_positive_int(work_package_id, field_name="work_package_id")
+    safe_comment = _validate_required_text(comment, field_name="comment", max_length=10_000)
+    return await _run_tool(
+        client.add_work_package_comment(
+            work_package_id=safe_id,
+            comment=safe_comment,
+            internal=internal,
+            notify=notify,
+            confirm=confirm,
+        )
+    )
+
+
+async def create_work_package_relation(
+    ctx: Context,
+    work_package_id: int,
+    related_to_work_package_id: int,
+    relation_type: str,
+    description: str | None = None,
+    lag: int | None = None,
+    confirm: bool = False,
+) -> RelationWriteResult:
+    """Prepare or create a relation between work packages."""
+    client = _client_from_context(ctx)
+    safe_id = _validate_positive_int(work_package_id, field_name="work_package_id")
+    safe_related_id = _validate_positive_int(related_to_work_package_id, field_name="related_to_work_package_id")
+    safe_relation_type = _validate_relation_type(relation_type)
+    safe_description = _validate_optional_text(description, field_name="description", max_length=255)
+    safe_lag = _validate_optional_non_negative_int(lag, field_name="lag")
+    return await _run_tool(
+        client.create_work_package_relation(
+            work_package_id=safe_id,
+            related_to_work_package_id=safe_related_id,
+            relation_type=safe_relation_type,
+            description=safe_description,
+            lag=safe_lag,
+            confirm=confirm,
+        )
+    )
+
+
+async def delete_relation(
+    ctx: Context,
+    relation_id: int,
+    confirm: bool = False,
+) -> RelationWriteResult:
+    """Prepare or delete a relation between work packages."""
+    client = _client_from_context(ctx)
+    safe_id = _validate_positive_int(relation_id, field_name="relation_id")
+    return await _run_tool(client.delete_relation(relation_id=safe_id, confirm=confirm))
+
+
+async def list_my_open_work_packages(
+    ctx: Context,
+    offset: int = 1,
+    limit: int | None = None,
+) -> WorkPackageListResult:
+    """List the current user's open assigned work packages."""
+    client = _client_from_context(ctx)
+    safe_offset = _validate_offset(offset)
+    safe_limit = _validate_limit(limit)
+    return await _run_tool(client.list_my_open_work_packages(offset=safe_offset, limit=safe_limit))
+
+
+async def list_versions(
+    ctx: Context,
+    project: str | None = None,
+    offset: int = 1,
+    limit: int | None = None,
+) -> VersionListResult:
+    """List versions globally or for a specific project."""
+    client = _client_from_context(ctx)
+    safe_project = _validate_optional_project_ref(project)
+    safe_offset = _validate_offset(offset)
+    safe_limit = _validate_limit(limit)
+    return await _run_tool(client.list_versions(project=safe_project, offset=safe_offset, limit=safe_limit))
+
+
+async def get_version(
+    ctx: Context,
+    version_id: int,
+) -> VersionDetail:
+    """Get a compact version summary by id."""
+    client = _client_from_context(ctx)
+    safe_id = _validate_positive_int(version_id, field_name="version_id")
+    return await _run_tool(client.get_version(safe_id))
+
+
+async def create_version(
+    ctx: Context,
+    project: str,
+    name: str,
+    description: str | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
+    status: str | None = None,
+    sharing: str | None = None,
+    confirm: bool = False,
+) -> VersionWriteResult:
+    """Prepare or create a version for a project."""
+    client = _client_from_context(ctx)
+    safe_project = _validate_project_ref(project)
+    safe_name = _validate_required_query(name, field_name="name", max_length=60)
+    safe_description = _validate_optional_text(description, field_name="description", max_length=10_000)
+    safe_start_date = _validate_optional_date(start_date, field_name="start_date")
+    safe_end_date = _validate_optional_date(end_date, field_name="end_date")
+    safe_status = _validate_optional_choice(status, field_name="status", allowed_values={"open", "locked", "closed"})
+    safe_sharing = _validate_optional_choice(
+        sharing,
+        field_name="sharing",
+        allowed_values={"none", "descendants", "hierarchy", "tree"},
+    )
+    return await _run_tool(
+        client.create_version(
+            project=safe_project,
+            name=safe_name,
+            description=safe_description,
+            start_date=safe_start_date,
+            end_date=safe_end_date,
+            status=safe_status,
+            sharing=safe_sharing,
+            confirm=confirm,
+        )
+    )
+
+
+async def update_version(
+    ctx: Context,
+    version_id: int,
+    name: str | None = None,
+    description: str | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
+    status: str | None = None,
+    sharing: str | None = None,
+    confirm: bool = False,
+) -> VersionWriteResult:
+    """Prepare or update a version."""
+    client = _client_from_context(ctx)
+    safe_id = _validate_positive_int(version_id, field_name="version_id")
+    safe_name = _validate_optional_query(name, field_name="name", max_length=60)
+    safe_description = _validate_optional_text(description, field_name="description", max_length=10_000)
+    safe_start_date = _validate_optional_date(start_date, field_name="start_date")
+    safe_end_date = _validate_optional_date(end_date, field_name="end_date")
+    safe_status = _validate_optional_choice(status, field_name="status", allowed_values={"open", "locked", "closed"})
+    safe_sharing = _validate_optional_choice(
+        sharing,
+        field_name="sharing",
+        allowed_values={"none", "descendants", "hierarchy", "tree"},
+    )
+    if not any(value is not None for value in (safe_name, safe_description, safe_start_date, safe_end_date, safe_status, safe_sharing)):
+        raise ValueError("At least one field to update is required.")
+    return await _run_tool(
+        client.update_version(
+            version_id=safe_id,
+            name=safe_name,
+            description=safe_description,
+            start_date=safe_start_date,
+            end_date=safe_end_date,
+            status=safe_status,
+            sharing=safe_sharing,
+            confirm=confirm,
+        )
+    )
+
+
+async def delete_version(
+    ctx: Context,
+    version_id: int,
+    confirm: bool = False,
+) -> VersionWriteResult:
+    """Prepare or delete a version."""
+    client = _client_from_context(ctx)
+    safe_id = _validate_positive_int(version_id, field_name="version_id")
+    return await _run_tool(client.delete_version(version_id=safe_id, confirm=confirm))
+
+
+async def list_boards(
+    ctx: Context,
+    project: str | None = None,
+    search: str | None = None,
+    offset: int = 1,
+    limit: int | None = None,
+) -> BoardListResult:
+    """List saved OpenProject boards/queries, optionally scoped to a project."""
+    client = _client_from_context(ctx)
+    safe_project = _validate_optional_project_ref(project)
+    safe_search = _validate_optional_query(search, field_name="search", max_length=100)
+    safe_offset = _validate_offset(offset)
+    safe_limit = _validate_limit(limit)
+    return await _run_tool(
+        client.list_boards(project=safe_project, search=safe_search, offset=safe_offset, limit=safe_limit)
+    )
+
+
+async def get_board(
+    ctx: Context,
+    board_id: int,
+) -> BoardDetail:
+    """Get a saved OpenProject board/query by id."""
+    client = _client_from_context(ctx)
+    safe_id = _validate_positive_int(board_id, field_name="board_id")
+    return await _run_tool(client.get_board(safe_id))
+
+
+async def create_board(
+    ctx: Context,
+    name: str,
+    project: str | None = None,
+    public: bool | None = None,
+    starred: bool | None = None,
+    hidden: bool | None = None,
+    include_subprojects: bool | None = None,
+    show_hierarchies: bool | None = None,
+    timeline_visible: bool | None = None,
+    group_by: str | None = None,
+    columns: list[str] | None = None,
+    sort_by: list[str] | None = None,
+    highlighted_attributes: list[str] | None = None,
+    filters: list[dict[str, Any]] | None = None,
+    confirm: bool = False,
+) -> BoardWriteResult:
+    """Prepare or create a saved OpenProject board/query."""
+    client = _client_from_context(ctx)
+    safe_name = _validate_required_query(name, field_name="name", max_length=255)
+    safe_project = _validate_optional_project_ref(project)
+    safe_group_by = _validate_optional_query(group_by, field_name="group_by", max_length=120)
+    safe_columns = _validate_optional_string_list(columns, field_name="columns", max_items=50, item_max_length=120)
+    safe_sort_by = _validate_optional_string_list(sort_by, field_name="sort_by", max_items=20, item_max_length=120)
+    safe_highlighted = _validate_optional_string_list(
+        highlighted_attributes,
+        field_name="highlighted_attributes",
+        max_items=20,
+        item_max_length=120,
+    )
+    safe_filters = _validate_optional_filter_list(filters)
+    return await _run_tool(
+        client.create_board(
+            name=safe_name,
+            project=safe_project,
+            public=public,
+            starred=starred,
+            hidden=hidden,
+            include_subprojects=include_subprojects,
+            show_hierarchies=show_hierarchies,
+            timeline_visible=timeline_visible,
+            group_by=safe_group_by,
+            columns=safe_columns,
+            sort_by=safe_sort_by,
+            highlighted_attributes=safe_highlighted,
+            filters=safe_filters,
+            confirm=confirm,
+        )
+    )
+
+
+async def update_board(
+    ctx: Context,
+    board_id: int,
+    name: str | None = None,
+    project: str | None = None,
+    public: bool | None = None,
+    starred: bool | None = None,
+    hidden: bool | None = None,
+    include_subprojects: bool | None = None,
+    show_hierarchies: bool | None = None,
+    timeline_visible: bool | None = None,
+    group_by: str | None = None,
+    columns: list[str] | None = None,
+    sort_by: list[str] | None = None,
+    highlighted_attributes: list[str] | None = None,
+    filters: list[dict[str, Any]] | None = None,
+    confirm: bool = False,
+) -> BoardWriteResult:
+    """Prepare or update a saved OpenProject board/query."""
+    client = _client_from_context(ctx)
+    safe_id = _validate_positive_int(board_id, field_name="board_id")
+    safe_name = _validate_optional_query(name, field_name="name", max_length=255)
+    safe_project = _validate_optional_project_ref(project)
+    safe_group_by = _validate_optional_query(group_by, field_name="group_by", max_length=120)
+    safe_columns = _validate_optional_string_list(columns, field_name="columns", max_items=50, item_max_length=120)
+    safe_sort_by = _validate_optional_string_list(sort_by, field_name="sort_by", max_items=20, item_max_length=120)
+    safe_highlighted = _validate_optional_string_list(
+        highlighted_attributes,
+        field_name="highlighted_attributes",
+        max_items=20,
+        item_max_length=120,
+    )
+    safe_filters = _validate_optional_filter_list(filters)
+    if not any(
+        value is not None
+        for value in (
+            safe_name,
+            safe_project,
+            public,
+            starred,
+            hidden,
+            include_subprojects,
+            show_hierarchies,
+            timeline_visible,
+            safe_group_by,
+            safe_columns,
+            safe_sort_by,
+            safe_highlighted,
+            safe_filters,
+        )
+    ):
+        raise ValueError("At least one field to update is required.")
+    return await _run_tool(
+        client.update_board(
+            board_id=safe_id,
+            name=safe_name,
+            project=safe_project,
+            public=public,
+            starred=starred,
+            hidden=hidden,
+            include_subprojects=include_subprojects,
+            show_hierarchies=show_hierarchies,
+            timeline_visible=timeline_visible,
+            group_by=safe_group_by,
+            columns=safe_columns,
+            sort_by=safe_sort_by,
+            highlighted_attributes=safe_highlighted,
+            filters=safe_filters,
+            confirm=confirm,
+        )
+    )
+
+
+async def delete_board(
+    ctx: Context,
+    board_id: int,
+    confirm: bool = False,
+) -> BoardWriteResult:
+    """Prepare or delete a saved OpenProject board/query."""
+    client = _client_from_context(ctx)
+    safe_id = _validate_positive_int(board_id, field_name="board_id")
+    return await _run_tool(client.delete_board(board_id=safe_id, confirm=confirm))
+
+
+async def list_work_package_attachments(
+    ctx: Context,
+    work_package_id: int,
+) -> AttachmentListResult:
+    """List attachments on a work package."""
+    client = _client_from_context(ctx)
+    safe_id = _validate_positive_int(work_package_id, field_name="work_package_id")
+    return await _run_tool(client.list_work_package_attachments(safe_id))
+
+
+async def get_attachment(
+    ctx: Context,
+    attachment_id: int,
+) -> AttachmentSummary:
+    """Get a single attachment by id."""
+    client = _client_from_context(ctx)
+    safe_id = _validate_positive_int(attachment_id, field_name="attachment_id")
+    return await _run_tool(client.get_attachment(safe_id))
+
+
+async def create_work_package_attachment(
+    ctx: Context,
+    work_package_id: int,
+    file_path: str,
+    description: str | None = None,
+    confirm: bool = False,
+) -> AttachmentWriteResult:
+    """Prepare or upload an attachment to a work package."""
+    client = _client_from_context(ctx)
+    safe_work_package_id = _validate_positive_int(work_package_id, field_name="work_package_id")
+    safe_file_path = _validate_required_text(file_path, field_name="file_path", max_length=4096)
+    safe_description = _validate_optional_text(description, field_name="description", max_length=10_000)
+    return await _run_tool(
+        client.create_work_package_attachment(
+            work_package_id=safe_work_package_id,
+            file_path=safe_file_path,
+            description=safe_description,
+            confirm=confirm,
+        )
+    )
+
+
+async def delete_attachment(
+    ctx: Context,
+    attachment_id: int,
+    confirm: bool = False,
+) -> AttachmentWriteResult:
+    """Prepare or delete an attachment."""
+    client = _client_from_context(ctx)
+    safe_id = _validate_positive_int(attachment_id, field_name="attachment_id")
+    return await _run_tool(client.delete_attachment(attachment_id=safe_id, confirm=confirm))
+
+
+async def list_time_entry_activities(ctx: Context) -> TimeEntryActivityListResult:
+    """List available time entry activities."""
+    client = _client_from_context(ctx)
+    return await _run_tool(client.list_time_entry_activities())
+
+
+async def list_time_entries(
+    ctx: Context,
+    project: str | None = None,
+    work_package_id: int | None = None,
+    user: str | None = None,
+    spent_on_from: str | None = None,
+    spent_on_to: str | None = None,
+    offset: int = 1,
+    limit: int | None = None,
+) -> TimeEntryListResult:
+    """List time entries with optional project, work package, user, and date filters."""
+    client = _client_from_context(ctx)
+    safe_project = _validate_optional_project_ref(project)
+    safe_work_package_id = _validate_optional_positive_int(work_package_id, field_name="work_package_id")
+    safe_user = _validate_optional_user_or_principal_ref(user)
+    safe_spent_on_from = _validate_optional_date(spent_on_from, field_name="spent_on_from")
+    safe_spent_on_to = _validate_optional_date(spent_on_to, field_name="spent_on_to")
+    safe_offset = _validate_offset(offset)
+    safe_limit = _validate_limit(limit)
+    return await _run_tool(
+        client.list_time_entries(
+            project=safe_project,
+            work_package_id=safe_work_package_id,
+            user=safe_user,
+            spent_on_from=safe_spent_on_from,
+            spent_on_to=safe_spent_on_to,
+            offset=safe_offset,
+            limit=safe_limit,
+        )
+    )
+
+
+async def get_time_entry(
+    ctx: Context,
+    time_entry_id: int,
+) -> TimeEntrySummary:
+    """Get a single time entry by id."""
+    client = _client_from_context(ctx)
+    safe_id = _validate_positive_int(time_entry_id, field_name="time_entry_id")
+    return await _run_tool(client.get_time_entry(safe_id))
+
+
+async def create_time_entry(
+    ctx: Context,
+    activity: str,
+    hours: str,
+    spent_on: str,
+    project: str | None = None,
+    work_package_id: int | None = None,
+    user: str | None = None,
+    comment: str | None = None,
+    ongoing: bool | None = None,
+    confirm: bool = False,
+) -> TimeEntryWriteResult:
+    """Prepare or create a time entry."""
+    client = _client_from_context(ctx)
+    safe_activity = _validate_required_query(activity, field_name="activity", max_length=100)
+    safe_hours = _validate_required_duration(hours, field_name="hours")
+    safe_spent_on = _validate_required_date(spent_on, field_name="spent_on")
+    safe_project = _validate_optional_project_ref(project)
+    safe_work_package_id = _validate_optional_positive_int(work_package_id, field_name="work_package_id")
+    safe_user = _validate_optional_user_or_principal_ref(user)
+    safe_comment = _validate_optional_text(comment, field_name="comment", max_length=10_000)
+    if safe_project is None and safe_work_package_id is None:
+        raise ValueError("Either project or work_package_id is required.")
+    return await _run_tool(
+        client.create_time_entry(
+            project=safe_project,
+            work_package_id=safe_work_package_id,
+            user=safe_user,
+            activity=safe_activity,
+            hours=safe_hours,
+            spent_on=safe_spent_on,
+            comment=safe_comment,
+            ongoing=ongoing,
+            confirm=confirm,
+        )
+    )
+
+
+async def update_time_entry(
+    ctx: Context,
+    time_entry_id: int,
+    user: str | None = None,
+    activity: str | None = None,
+    hours: str | None = None,
+    spent_on: str | None = None,
+    comment: str | None = None,
+    ongoing: bool | None = None,
+    confirm: bool = False,
+) -> TimeEntryWriteResult:
+    """Prepare or update a time entry."""
+    client = _client_from_context(ctx)
+    safe_id = _validate_positive_int(time_entry_id, field_name="time_entry_id")
+    safe_user = _validate_optional_user_or_principal_ref(user)
+    safe_activity = _validate_optional_query(activity, field_name="activity", max_length=100)
+    safe_hours = _validate_optional_duration(hours, field_name="hours")
+    safe_spent_on = _validate_optional_date(spent_on, field_name="spent_on")
+    safe_comment = _validate_optional_text(comment, field_name="comment", max_length=10_000)
+    if not any(value is not None for value in (safe_user, safe_activity, safe_hours, safe_spent_on, safe_comment, ongoing)):
+        raise ValueError("At least one field to update is required.")
+    return await _run_tool(
+        client.update_time_entry(
+            time_entry_id=safe_id,
+            user=safe_user,
+            activity=safe_activity,
+            hours=safe_hours,
+            spent_on=safe_spent_on,
+            comment=safe_comment,
+            ongoing=ongoing,
+            confirm=confirm,
+        )
+    )
+
+
+async def delete_time_entry(
+    ctx: Context,
+    time_entry_id: int,
+    confirm: bool = False,
+) -> TimeEntryWriteResult:
+    """Prepare or delete a time entry."""
+    client = _client_from_context(ctx)
+    safe_id = _validate_positive_int(time_entry_id, field_name="time_entry_id")
+    return await _run_tool(client.delete_time_entry(time_entry_id=safe_id, confirm=confirm))
+
+
+async def get_work_package_relations(
+    ctx: Context,
+    work_package_id: int,
+) -> RelationListResult:
+    """Get all relations for a work package (blocks, relates to, duplicates, etc.)."""
+    client = _client_from_context(ctx)
+    safe_id = _validate_positive_int(work_package_id, field_name="work_package_id")
+    return await _run_tool(client.get_work_package_relations(safe_id))
+
+
+async def get_work_package_activities(
+    ctx: Context,
+    work_package_id: int,
+    limit: int | None = None,
+) -> ActivityListResult:
+    """Get the activity log for a work package, most recent first."""
+    client = _client_from_context(ctx)
+    safe_id = _validate_positive_int(work_package_id, field_name="work_package_id")
+    safe_limit = _validate_limit(limit)
+    return await _run_tool(client.get_work_package_activities(safe_id, limit=safe_limit))
+
+
+async def get_current_user(ctx: Context) -> CurrentUser:
+    """Return the currently authenticated user's profile."""
+    client = _client_from_context(ctx)
+    return await _run_tool(client.get_current_user())
+
+
+async def list_statuses(ctx: Context) -> StatusListResult:
+    """List all available work package statuses."""
+    client = _client_from_context(ctx)
+    return await _run_tool(client.list_statuses())
+
+
+async def get_status(ctx: Context, status_id: int) -> StatusSummary:
+    """Get a single work package status by id."""
+    client = _client_from_context(ctx)
+    safe_id = _validate_positive_int(status_id, field_name="status_id")
+    return await _run_tool(client.get_status(safe_id))
+
+
+async def list_priorities(ctx: Context) -> PriorityListResult:
+    """List all available work package priorities."""
+    client = _client_from_context(ctx)
+    return await _run_tool(client.list_priorities())
+
+
+async def get_priority(ctx: Context, priority_id: int) -> PrioritySummary:
+    """Get a single work package priority by id."""
+    client = _client_from_context(ctx)
+    safe_id = _validate_positive_int(priority_id, field_name="priority_id")
+    return await _run_tool(client.get_priority(safe_id))
+
+
+async def list_types(
+    ctx: Context,
+    project: str | None = None,
+) -> TypeListResult:
+    """List all available work package types, optionally filtered by project."""
+    client = _client_from_context(ctx)
+    safe_project = _validate_optional_project_ref(project)
+    return await _run_tool(client.list_types(project=safe_project))
+
+
+async def get_type(ctx: Context, type_id: int) -> TypeSummary:
+    """Get a single work package type by id."""
+    client = _client_from_context(ctx)
+    safe_id = _validate_positive_int(type_id, field_name="type_id")
+    return await _run_tool(client.get_type(safe_id))
+
+
+async def list_work_package_watchers(
+    ctx: Context,
+    work_package_id: int,
+) -> WatcherListResult:
+    """List watchers of a work package."""
+    client = _client_from_context(ctx)
+    safe_id = _validate_positive_int(work_package_id, field_name="work_package_id")
+    return await _run_tool(client.list_work_package_watchers(safe_id))
+
+
+async def add_work_package_watcher(
+    ctx: Context,
+    work_package_id: int,
+    user_id: int,
+    confirm: bool = False,
+) -> WatcherWriteResult:
+    """Prepare or add a watcher to a work package."""
+    client = _client_from_context(ctx)
+    safe_wp_id = _validate_positive_int(work_package_id, field_name="work_package_id")
+    safe_user_id = _validate_positive_int(user_id, field_name="user_id")
+    return await _run_tool(client.add_work_package_watcher(safe_wp_id, safe_user_id, confirm=confirm))
+
+
+async def remove_work_package_watcher(
+    ctx: Context,
+    work_package_id: int,
+    user_id: int,
+    confirm: bool = False,
+) -> WatcherWriteResult:
+    """Prepare or remove a watcher from a work package."""
+    client = _client_from_context(ctx)
+    safe_wp_id = _validate_positive_int(work_package_id, field_name="work_package_id")
+    safe_user_id = _validate_positive_int(user_id, field_name="user_id")
+    return await _run_tool(client.remove_work_package_watcher(safe_wp_id, safe_user_id, confirm=confirm))
+
+
+async def list_notifications(
+    ctx: Context,
+    unread_only: bool = False,
+    limit: int | None = None,
+    offset: int = 1,
+) -> NotificationListResult:
+    """List in-app notifications for the current user."""
+    client = _client_from_context(ctx)
+    safe_offset = _validate_offset(offset)
+    safe_limit = _validate_limit(limit)
+    return await _run_tool(client.list_notifications(unread_only=unread_only, limit=safe_limit, offset=safe_offset))
+
+
+async def mark_notification_read(ctx: Context, notification_id: int) -> None:
+    """Mark a single notification as read."""
+    client = _client_from_context(ctx)
+    safe_id = _validate_positive_int(notification_id, field_name="notification_id")
+    return await _run_tool(client.mark_notification_read(safe_id))
+
+
+async def mark_all_notifications_read(ctx: Context) -> None:
+    """Mark all notifications as read."""
+    client = _client_from_context(ctx)
+    return await _run_tool(client.mark_all_notifications_read())
+
+
+async def create_user(
+    ctx: Context,
+    login: str,
+    email: str,
+    firstname: str,
+    lastname: str,
+    password: str | None = None,
+    admin: bool = False,
+    status: str = "active",
+    language: str | None = None,
+    confirm: bool = False,
+) -> UserWriteResult:
+    """Prepare or create a new user (admin operation)."""
+    client = _client_from_context(ctx)
+    safe_login = _validate_required_query(login, field_name="login", max_length=100)
+    safe_email = _validate_required_query(email, field_name="email", max_length=255)
+    safe_firstname = _validate_required_query(firstname, field_name="firstname", max_length=255)
+    safe_lastname = _validate_required_query(lastname, field_name="lastname", max_length=255)
+    safe_status = _validate_optional_query(status, field_name="status", max_length=50) or "active"
+    safe_language = _validate_optional_query(language, field_name="language", max_length=10)
+    return await _run_tool(
+        client.create_user(
+            login=safe_login,
+            email=safe_email,
+            firstname=safe_firstname,
+            lastname=safe_lastname,
+            password=password,
+            admin=admin,
+            status=safe_status,
+            language=safe_language,
+            confirm=confirm,
+        )
+    )
+
+
+async def update_user(
+    ctx: Context,
+    user_id: int,
+    login: str | None = None,
+    email: str | None = None,
+    firstname: str | None = None,
+    lastname: str | None = None,
+    admin: bool | None = None,
+    language: str | None = None,
+    confirm: bool = False,
+) -> UserWriteResult:
+    """Prepare or update an existing user (admin operation)."""
+    client = _client_from_context(ctx)
+    safe_id = _validate_positive_int(user_id, field_name="user_id")
+    safe_login = _validate_optional_query(login, field_name="login", max_length=100)
+    safe_email = _validate_optional_query(email, field_name="email", max_length=255)
+    safe_firstname = _validate_optional_query(firstname, field_name="firstname", max_length=255)
+    safe_lastname = _validate_optional_query(lastname, field_name="lastname", max_length=255)
+    safe_language = _validate_optional_query(language, field_name="language", max_length=10)
+    if all(v is None for v in (safe_login, safe_email, safe_firstname, safe_lastname, admin, safe_language)):
+        raise ValueError("At least one field must be provided to update.")
+    return await _run_tool(
+        client.update_user(
+            safe_id,
+            login=safe_login,
+            email=safe_email,
+            firstname=safe_firstname,
+            lastname=safe_lastname,
+            admin=admin,
+            language=safe_language,
+            confirm=confirm,
+        )
+    )
+
+
+async def delete_user(
+    ctx: Context,
+    user_id: int,
+    confirm: bool = False,
+) -> UserWriteResult:
+    """Prepare or delete a user (admin operation)."""
+    client = _client_from_context(ctx)
+    safe_id = _validate_positive_int(user_id, field_name="user_id")
+    return await _run_tool(client.delete_user(safe_id, confirm=confirm))
+
+
+async def lock_user(
+    ctx: Context,
+    user_id: int,
+    confirm: bool = False,
+) -> UserWriteResult:
+    """Prepare or lock a user account (admin operation)."""
+    client = _client_from_context(ctx)
+    safe_id = _validate_positive_int(user_id, field_name="user_id")
+    return await _run_tool(client.lock_user(safe_id, confirm=confirm))
+
+
+async def unlock_user(
+    ctx: Context,
+    user_id: int,
+    confirm: bool = False,
+) -> UserWriteResult:
+    """Prepare or unlock a user account (admin operation)."""
+    client = _client_from_context(ctx)
+    safe_id = _validate_positive_int(user_id, field_name="user_id")
+    return await _run_tool(client.unlock_user(safe_id, confirm=confirm))
+
+
+async def create_group(
+    ctx: Context,
+    name: str,
+    user_ids: list[int] | None = None,
+    confirm: bool = False,
+) -> GroupWriteResult:
+    """Prepare or create a new group (admin operation)."""
+    client = _client_from_context(ctx)
+    safe_name = _validate_required_query(name, field_name="name", max_length=255)
+    return await _run_tool(client.create_group(name=safe_name, user_ids=user_ids, confirm=confirm))
+
+
+async def update_group(
+    ctx: Context,
+    group_id: int,
+    name: str | None = None,
+    add_user_ids: list[int] | None = None,
+    remove_user_ids: list[int] | None = None,
+    confirm: bool = False,
+) -> GroupWriteResult:
+    """Prepare or update an existing group (admin operation)."""
+    client = _client_from_context(ctx)
+    safe_id = _validate_positive_int(group_id, field_name="group_id")
+    safe_name = _validate_optional_query(name, field_name="name", max_length=255)
+    if all(v is None for v in (safe_name, add_user_ids, remove_user_ids)):
+        raise ValueError("At least one field must be provided to update.")
+    return await _run_tool(
+        client.update_group(safe_id, name=safe_name, add_user_ids=add_user_ids, remove_user_ids=remove_user_ids, confirm=confirm)
+    )
+
+
+async def delete_group(
+    ctx: Context,
+    group_id: int,
+    confirm: bool = False,
+) -> GroupWriteResult:
+    """Prepare or delete a group (admin operation)."""
+    client = _client_from_context(ctx)
+    safe_id = _validate_positive_int(group_id, field_name="group_id")
+    return await _run_tool(client.delete_group(safe_id, confirm=confirm))
+
+
+async def list_work_package_file_links(
+    ctx: Context,
+    work_package_id: int,
+) -> FileLinkListResult:
+    """List Nextcloud file links attached to a work package (Community Edition)."""
+    client = _client_from_context(ctx)
+    safe_id = _validate_positive_int(work_package_id, field_name="work_package_id")
+    return await _run_tool(client.list_work_package_file_links(safe_id))
+
+
+async def delete_file_link(
+    ctx: Context,
+    file_link_id: int,
+    confirm: bool = False,
+) -> FileLinkWriteResult:
+    """Prepare or delete a Nextcloud file link."""
+    client = _client_from_context(ctx)
+    safe_id = _validate_positive_int(file_link_id, field_name="file_link_id")
+    return await _run_tool(client.delete_file_link(safe_id, confirm=confirm))
+
+
+async def list_grids(
+    ctx: Context,
+    scope: str | None = None,
+) -> GridListResult:
+    """List dashboard grids, optionally filtered by scope (page path)."""
+    client = _client_from_context(ctx)
+    safe_scope = _validate_optional_query(scope, field_name="scope", max_length=500)
+    return await _run_tool(client.list_grids(scope=safe_scope))
+
+
+async def get_grid(ctx: Context, grid_id: int) -> GridSummary:
+    """Get a single dashboard grid by id."""
+    client = _client_from_context(ctx)
+    safe_id = _validate_positive_int(grid_id, field_name="grid_id")
+    return await _run_tool(client.get_grid(safe_id))
+
+
+async def create_grid(
+    ctx: Context,
+    name: str,
+    scope: str,
+    row_count: int | None = None,
+    column_count: int | None = None,
+    confirm: bool = False,
+) -> GridWriteResult:
+    """Prepare or create a dashboard grid for a scope such as `/my/page` or `/projects/<identifier>`."""
+    client = _client_from_context(ctx)
+    safe_name = _validate_required_query(name, field_name="name", max_length=255)
+    safe_scope = _validate_required_query(scope, field_name="scope", max_length=500)
+    if not safe_scope.startswith("/"):
+        raise ValueError("scope must start with '/'.")
+    safe_row_count = _validate_positive_int(row_count, field_name="row_count") if row_count is not None else None
+    safe_column_count = _validate_positive_int(column_count, field_name="column_count") if column_count is not None else None
+    return await _run_tool(
+        client.create_grid(
+            name=safe_name,
+            scope=safe_scope,
+            row_count=safe_row_count,
+            column_count=safe_column_count,
+            confirm=confirm,
+        )
+    )
+
+
+async def get_my_preferences(ctx: Context) -> UserPreferences:
+    """Return the current user's OpenProject preferences (language, timezone, sorting, …)."""
+    client = _client_from_context(ctx)
+    return await _run_tool(client.get_my_preferences())
+
+
+async def update_my_preferences(
+    ctx: Context,
+    lang: str | None = None,
+    time_zone: str | None = None,
+    comment_sort_descending: bool | None = None,
+    warn_on_leaving_unsaved: bool | None = None,
+    auto_hide_popups: bool | None = None,
+    confirm: bool = False,
+) -> UserPreferencesWriteResult:
+    """Prepare or update the current user's preferences (language, timezone, comment sort order, …).
+    Set confirm=true to write, or enable OPENPROJECT_AUTO_CONFIRM_WRITE to skip confirmation."""
+    client = _client_from_context(ctx)
+    return await _run_tool(
+        client.update_my_preferences(
+            lang=lang,
+            time_zone=time_zone,
+            comment_sort_descending=comment_sort_descending,
+            warn_on_leaving_unsaved=warn_on_leaving_unsaved,
+            auto_hide_popups=auto_hide_popups,
+            confirm=confirm,
+        )
+    )
+
+
+async def render_text(
+    ctx: Context,
+    text: str,
+    format: str = "markdown",
+) -> RenderedText:
+    """Render markdown or plain text to HTML using the OpenProject API. format: 'markdown' or 'plain'."""
+    client = _client_from_context(ctx)
+    safe_text = _validate_required_text(text, field_name="text", max_length=50_000)
+    if format not in ("markdown", "plain"):
+        raise ValueError("format must be 'markdown' or 'plain'.")
+    return await _run_tool(client.render_text(text=safe_text, format=format))
+
+
+async def list_help_texts(ctx: Context) -> HelpTextListResult:
+    """List all help texts configured for work-package and project attributes."""
+    client = _client_from_context(ctx)
+    return await _run_tool(client.list_help_texts())
+
+
+async def get_help_text(ctx: Context, help_text_id: int) -> HelpTextSummary:
+    """Get a single help text by id."""
+    client = _client_from_context(ctx)
+    safe_id = _validate_positive_int(help_text_id, field_name="help_text_id")
+    return await _run_tool(client.get_help_text(safe_id))
+
+
+async def list_working_days(ctx: Context) -> WorkingDayListResult:
+    """List the Mon–Sun working-day configuration (7 entries showing which weekdays are working days)."""
+    client = _client_from_context(ctx)
+    return await _run_tool(client.list_working_days())
+
+
+async def list_non_working_days(
+    ctx: Context,
+    year: int | None = None,
+) -> NonWorkingDayListResult:
+    """List non-working days (public holidays / closures) for a given year, or the current year."""
+    client = _client_from_context(ctx)
+    return await _run_tool(client.list_non_working_days(year=year))
+
+
+async def get_custom_option(ctx: Context, custom_option_id: int) -> CustomOptionSummary:
+    """Fetch the label/value of a single custom field option by id."""
+    client = _client_from_context(ctx)
+    safe_id = _validate_positive_int(custom_option_id, field_name="custom_option_id")
+    return await _run_tool(client.get_custom_option(safe_id))
+
+
+async def list_relations(
+    ctx: Context,
+    relation_type: str | None = None,
+) -> RelationListResult:
+    """List all relations across the instance, optionally filtered by type (e.g. 'blocks', 'follows')."""
+    client = _client_from_context(ctx)
+    safe_type = _validate_relation_type(relation_type) if relation_type else None
+    return await _run_tool(client.list_relations(relation_type=safe_type))
+
+
+async def update_relation(
+    ctx: Context,
+    relation_id: int,
+    relation_type: str | None = None,
+    description: str | None = None,
+    confirm: bool = False,
+) -> RelationUpdateResult:
+    """Prepare or update the type or description of a relation. Set confirm=true to write."""
+    client = _client_from_context(ctx)
+    safe_id = _validate_positive_int(relation_id, field_name="relation_id")
+    safe_type = _validate_relation_type(relation_type) if relation_type else None
+    safe_desc = _validate_optional_query(description, field_name="description", max_length=500) if description else None
+    return await _run_tool(
+        client.update_relation(
+            relation_id=safe_id,
+            relation_type=safe_type,
+            description=safe_desc,
+            confirm=confirm,
+        )
+    )
+
+
+def _client_from_context(ctx: Context) -> OpenProjectClient:
+    app_context = cast(Any, ctx.request_context.lifespan_context)
+    return app_context.client
+
+
+async def _run_tool(awaitable):
+    try:
+        return await awaitable
+    except InvalidInputError as exc:
+        raise ValueError(str(exc)) from exc
+    except AuthenticationError as exc:
+        raise RuntimeError(str(exc)) from exc
+    except PermissionDeniedError as exc:
+        raise RuntimeError(str(exc)) from exc
+    except NotFoundError as exc:
+        raise RuntimeError(str(exc)) from exc
+    except TransportError as exc:
+        raise RuntimeError(str(exc)) from exc
+    except OpenProjectServerError as exc:
+        raise RuntimeError(str(exc)) from exc
+    except OpenProjectError as exc:
+        raise RuntimeError(str(exc)) from exc
+
+
+def _validate_optional_query(value: str | None, *, field_name: str, max_length: int) -> str | None:
+    if value is None:
+        return None
+    normalized = " ".join(value.split())
+    if not normalized:
+        return None
+    if len(normalized) > max_length:
+        raise ValueError(f"{field_name} must be at most {max_length} characters.")
+    return normalized
+
+
+def _validate_optional_text(value: str | None, *, field_name: str, max_length: int) -> str | None:
+    if value is None:
+        return None
+    normalized = value.strip()
+    if not normalized:
+        return None
+    if len(normalized) > max_length:
+        raise ValueError(f"{field_name} must be at most {max_length} characters.")
+    return normalized
+
+
+def _validate_required_text(value: str, *, field_name: str, max_length: int) -> str:
+    normalized = _validate_optional_text(value, field_name=field_name, max_length=max_length)
+    if not normalized:
+        raise ValueError(f"{field_name} is required.")
+    return normalized
+
+
+def _validate_optional_custom_fields(value: dict[str, Any] | None) -> dict[str, Any] | None:
+    if value is None:
+        return None
+    if not isinstance(value, dict):
+        raise ValueError("custom_fields must be an object mapping field names to values.")
+    if len(value) > 50:
+        raise ValueError("custom_fields must contain at most 50 entries.")
+    normalized: dict[str, Any] = {}
+    for raw_key, raw_value in value.items():
+        key = str(raw_key).strip()
+        if not key:
+            raise ValueError("custom_fields keys must not be empty.")
+        if len(key) > 120:
+            raise ValueError("custom_fields keys must be at most 120 characters.")
+        normalized[key] = _validate_custom_field_value(raw_value)
+    return normalized
+
+
+def _validate_custom_field_value(value: Any) -> Any:
+    if value is None or isinstance(value, (bool, int, float)):
+        return value
+    if isinstance(value, str):
+        if len(value) > 10_000:
+            raise ValueError("custom_fields string values must be at most 10000 characters.")
+        return value.strip()
+    if isinstance(value, list):
+        return [_validate_custom_field_value(item) for item in value]
+    raise ValueError("custom_fields values must be strings, numbers, booleans, null, or lists of those values.")
+
+
+def _validate_required_query(value: str, *, field_name: str, max_length: int) -> str:
+    normalized = _validate_optional_query(value, field_name=field_name, max_length=max_length)
+    if not normalized:
+        raise ValueError(f"{field_name} is required.")
+    return normalized
+
+
+def _validate_optional_project_ref(value: str | None) -> str | None:
+    if value is None:
+        return None
+    return _validate_project_ref(value)
+
+
+def _validate_optional_project_identifier(value: str | None) -> str | None:
+    if value is None:
+        return None
+    return _validate_project_identifier(value)
+
+
+def _validate_project_ref(value: str) -> str:
+    normalized = " ".join(value.split())
+    if not normalized:
+        raise ValueError("project is required.")
+    if normalized.isdigit():
+        _validate_positive_int(int(normalized), field_name="project")
+        return normalized
+    if not PROJECT_REF_RE.fullmatch(normalized):
+        raise ValueError("project must be a positive integer id or a valid project identifier.")
+    return normalized
+
+
+def _validate_project_identifier(value: str) -> str:
+    normalized = " ".join(value.split())
+    if not normalized:
+        raise ValueError("identifier is required.")
+    if not PROJECT_REF_RE.fullmatch(normalized):
+        raise ValueError("identifier must be a valid project identifier.")
+    return normalized
+
+
+def _validate_optional_user_ref(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized = " ".join(value.split())
+    if not normalized:
+        return None
+    if normalized.casefold() == "me":
+        return "me"
+    if normalized.isdigit():
+        _validate_positive_int(int(normalized), field_name="assignee")
+        return normalized
+    raise ValueError("assignee must be a positive integer user id or 'me'.")
+
+
+def _validate_optional_user_or_principal_ref(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized = " ".join(value.split())
+    if not normalized:
+        return None
+    if normalized.casefold() == "me":
+        return "me"
+    if normalized.isdigit():
+        _validate_positive_int(int(normalized), field_name="user")
+        return normalized
+    if len(normalized) > 255:
+        raise ValueError("user must be at most 255 characters.")
+    return normalized
+
+
+def _validate_optional_date(value: str | None, *, field_name: str) -> str | None:
+    if value is None:
+        return None
+    normalized = value.strip()
+    if not normalized:
+        return None
+    if not DATE_RE.fullmatch(normalized):
+        raise ValueError(f"{field_name} must use YYYY-MM-DD format.")
+    return normalized
+
+
+def _validate_required_date(value: str, *, field_name: str) -> str:
+    normalized = _validate_optional_date(value, field_name=field_name)
+    if not normalized:
+        raise ValueError(f"{field_name} is required.")
+    return normalized
+
+
+def _validate_optional_duration(value: str | None, *, field_name: str) -> str | None:
+    normalized = _validate_optional_query(value, field_name=field_name, max_length=50)
+    if normalized is None:
+        return None
+    if not ISO8601_DURATION_RE.fullmatch(normalized):
+        raise ValueError(f"{field_name} must use a simple ISO 8601 duration like PT1H30M.")
+    return normalized
+
+
+def _validate_required_duration(value: str, *, field_name: str) -> str:
+    normalized = _validate_optional_duration(value, field_name=field_name)
+    if not normalized:
+        raise ValueError(f"{field_name} is required.")
+    return normalized
+
+
+def _validate_relation_type(value: str) -> str:
+    normalized = _validate_required_query(value, field_name="relation_type", max_length=20).casefold()
+    if not RELATION_TYPE_RE.fullmatch(normalized):
+        raise ValueError(
+            "relation_type must be one of: relates, duplicates, duplicated, blocks, blocked, precedes, follows, includes, partof, requires, required."
+        )
+    return normalized
+
+
+def _validate_optional_non_negative_int(value: int | None, *, field_name: str) -> int | None:
+    if value is None:
+        return None
+    if value < 0:
+        raise ValueError(f"{field_name} must be at least 0.")
+    return value
+
+
+def _validate_required_string_list(
+    values: list[str],
+    *,
+    field_name: str,
+    max_items: int,
+    item_max_length: int,
+) -> list[str]:
+    if not isinstance(values, list):
+        raise ValueError(f"{field_name} must be a list of strings.")
+    if not values:
+        raise ValueError(f"{field_name} must contain at least one value.")
+    if len(values) > max_items:
+        raise ValueError(f"{field_name} must contain at most {max_items} values.")
+    normalized: list[str] = []
+    for value in values:
+        item = _validate_required_query(str(value), field_name=field_name, max_length=item_max_length)
+        normalized.append(item)
+    return normalized
+
+
+def _validate_optional_string_list(
+    values: list[str] | None,
+    *,
+    field_name: str,
+    max_items: int,
+    item_max_length: int,
+) -> list[str] | None:
+    if values is None:
+        return None
+    if not isinstance(values, list):
+        raise ValueError(f"{field_name} must be a list of strings.")
+    if len(values) > max_items:
+        raise ValueError(f"{field_name} must contain at most {max_items} values.")
+    normalized: list[str] = []
+    for value in values:
+        item = _validate_required_query(str(value), field_name=field_name, max_length=item_max_length)
+        normalized.append(item)
+    return normalized
+
+
+def _validate_optional_filter_list(value: list[dict[str, Any]] | None) -> list[dict[str, Any]] | None:
+    if value is None:
+        return None
+    if not isinstance(value, list):
+        raise ValueError("filters must be a list of objects.")
+    if len(value) > 50:
+        raise ValueError("filters must contain at most 50 entries.")
+    normalized: list[dict[str, Any]] = []
+    for item in value:
+        if not isinstance(item, dict):
+            raise ValueError("filters must be a list of objects.")
+        normalized.append(_validate_json_object(item, field_name="filters"))
+    return normalized
+
+
+def _validate_json_object(value: dict[str, Any], *, field_name: str) -> dict[str, Any]:
+    normalized: dict[str, Any] = {}
+    for raw_key, raw_value in value.items():
+        key = str(raw_key).strip()
+        if not key:
+            raise ValueError(f"{field_name} keys must not be empty.")
+        if len(key) > 120:
+            raise ValueError(f"{field_name} keys must be at most 120 characters.")
+        normalized[key] = _validate_json_value(raw_value, field_name=field_name)
+    return normalized
+
+
+def _validate_json_value(value: Any, *, field_name: str) -> Any:
+    if value is None or isinstance(value, (bool, int, float)):
+        return value
+    if isinstance(value, str):
+        if len(value) > 10_000:
+            raise ValueError(f"{field_name} string values must be at most 10000 characters.")
+        return value
+    if isinstance(value, list):
+        if len(value) > 100:
+            raise ValueError(f"{field_name} lists must contain at most 100 items.")
+        return [_validate_json_value(item, field_name=field_name) for item in value]
+    if isinstance(value, dict):
+        return _validate_json_object(value, field_name=field_name)
+    raise ValueError(f"{field_name} values must be JSON-compatible scalars, lists, or objects.")
+
+
+def _validate_optional_choice(
+    value: str | None,
+    *,
+    field_name: str,
+    allowed_values: set[str],
+) -> str | None:
+    normalized = _validate_optional_query(value, field_name=field_name, max_length=100)
+    if normalized is None:
+        return None
+    if normalized not in allowed_values:
+        allowed = ", ".join(sorted(allowed_values))
+        raise ValueError(f"{field_name} must be one of: {allowed}.")
+    return normalized
+
+
+def _validate_limit(limit: int | None) -> int | None:
+    if limit is None:
+        return None
+    return _validate_positive_int(limit, field_name="limit")
+
+
+def _validate_offset(offset: int) -> int:
+    return _validate_positive_int(offset, field_name="offset")
+
+
+def _validate_positive_int(value: int, *, field_name: str) -> int:
+    if value < 1:
+        raise ValueError(f"{field_name} must be at least 1.")
+    return value
+
+
+def _validate_optional_positive_int(value: int | None, *, field_name: str) -> int | None:
+    if value is None:
+        return None
+    return _validate_positive_int(value, field_name=field_name)

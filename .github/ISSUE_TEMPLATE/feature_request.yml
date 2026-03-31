@@ -1,0 +1,43 @@
+name: Feature Request
+description: Suggest a new tool or improvement
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have an idea for a new OpenProject API tool or improvement? Let us know!
+
+  - type: dropdown
+    id: type
+    attributes:
+      label: Type
+      options:
+        - New tool (missing API endpoint)
+        - Improvement to existing tool
+        - Configuration / access control
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What would you like?
+      description: A clear description of the feature and why it would be useful.
+    validations:
+      required: true
+
+  - type: input
+    id: api_endpoint
+    attributes:
+      label: Related OpenProject API endpoint (if applicable)
+      placeholder: "e.g. POST /api/v3/grids"
+
+  - type: checkboxes
+    id: edition
+    attributes:
+      label: OpenProject edition
+      options:
+        - label: Community Edition (CE)
+        - label: Enterprise Edition (EE)

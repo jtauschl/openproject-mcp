@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: OpenProject API Documentation
+    url: https://www.openproject.org/docs/api/
+    about: OpenProject v3 REST API reference

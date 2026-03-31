@@ -1,0 +1,40 @@
+{
+  "mcpServers": {
+    "openproject": {
+      "command": "/path/to/.venv/bin/openproject-mcp",
+      "env": {
+        "OPENPROJECT_BASE_URL": "https://op.example.com",
+        "OPENPROJECT_API_TOKEN": "replace-with-your-token",
+
+        "OPENPROJECT_ALLOWED_PROJECTS_READ": "*",
+        "OPENPROJECT_ALLOWED_PROJECTS_WRITE": "",
+
+        "OPENPROJECT_ENABLE_PROJECT_READ": "true",
+        "OPENPROJECT_ENABLE_MEMBERSHIP_READ": "true",
+        "OPENPROJECT_ENABLE_WORK_PACKAGE_READ": "true",
+        "OPENPROJECT_ENABLE_VERSION_READ": "true",
+        "OPENPROJECT_ENABLE_BOARD_READ": "true",
+
+        "OPENPROJECT_HIDE_PROJECT_FIELDS": "",
+        "OPENPROJECT_HIDE_WORK_PACKAGE_FIELDS": "",
+        "OPENPROJECT_HIDE_ACTIVITY_FIELDS": "",
+        "OPENPROJECT_HIDE_CUSTOM_FIELDS": "",
+
+        "OPENPROJECT_AUTO_CONFIRM_WRITE": "false",
+
+        "OPENPROJECT_ENABLE_PROJECT_WRITE": "false",
+        "OPENPROJECT_ENABLE_MEMBERSHIP_WRITE": "false",
+        "OPENPROJECT_ENABLE_WORK_PACKAGE_WRITE": "false",
+        "OPENPROJECT_ENABLE_VERSION_WRITE": "false",
+        "OPENPROJECT_ENABLE_BOARD_WRITE": "false",
+
+        "OPENPROJECT_TIMEOUT": "12",
+        "OPENPROJECT_VERIFY_SSL": "true",
+        "OPENPROJECT_DEFAULT_PAGE_SIZE": "20",
+        "OPENPROJECT_MAX_PAGE_SIZE": "50",
+        "OPENPROJECT_MAX_RESULTS": "100",
+        "OPENPROJECT_LOG_LEVEL": "WARNING"
+      }
+    }
+  }
+}

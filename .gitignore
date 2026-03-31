@@ -1,0 +1,28 @@
+# Python / build
+__pycache__/
+*.egg-info/
+dist/
+build/
+
+# Test / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+
+# Type checking
+.mypy_cache/
+
+# Local credentials and config
+.env
+.mcp.json
+/CLAUDE.md
+
+# Tool-local state
+.claude/
+.codex/
+.vscode/
+.DS_Store
+CONTINUE.md

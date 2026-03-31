@@ -1,0 +1,64 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "openproject-mcp"
+version = "1.0.0"
+description = "MCP server for OpenProject Community Edition with guarded read/write support."
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+authors = [
+  { name = "nutrilytics" },
+]
+keywords = ["openproject", "mcp", "model-context-protocol", "llm", "project-management"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+  "Topic :: Office/Business :: Scheduling",
+]
+dependencies = [
+  "httpx>=0.27,<1",
+  "mcp>=1.13,<2",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3,<9",
+  "pytest-asyncio>=1.3,<2",
+  "pytest-cov>=7.1,<8",
+]
+
+[dependency-groups]
+dev = [
+  "pytest>=8.3,<9",
+  "pytest-asyncio>=1.3,<2",
+  "pytest-cov>=7.1,<8",
+]
+
+[project.urls]
+Homepage = "https://github.com/jtauschl/openproject-mcp"
+Repository = "https://github.com/jtauschl/openproject-mcp"
+"Bug Tracker" = "https://github.com/jtauschl/openproject-mcp/issues"
+
+[project.scripts]
+openproject-mcp = "openproject_mcp.server:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/openproject_mcp"]
+
+[tool.hatch.build]
+dev-mode-dirs = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
