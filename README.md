@@ -63,7 +63,7 @@ This MCP server targets **OpenProject Community Edition** only. It does not supp
 - Create, update, lock, unlock, and delete users; add and remove group members
 
 **Supporting data**
-- Read wiki pages; create, update, and delete news; read and update documents
+- Fetch individual wiki pages by id; create, update, and delete news; read and update documents
 - Read and mark notifications; read help texts, working days, and instance configuration
 - Create and inspect grids; inspect custom options
 
@@ -141,29 +141,28 @@ DIR=~/tools/openproject-mcp curl -fsSL https://raw.githubusercontent.com/jtausch
 
 `.mcp.json` contains your API token. Treat it like a password — it is gitignored by default.
 
-Access is grouped into five chains: `project`, `membership`, `work_package`, `version`, and `board`. Each chain has a read flag and a write flag. The global `OPENPROJECT_ENABLE_READ` and `OPENPROJECT_ENABLE_WRITE` set all chains at once; scoped flags override them per chain.
+Access is grouped into five chains: `project`, `membership`, `work_package`, `version`, and `board`. Each chain has a read flag and a write flag. Scoped flags control each chain independently.
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
 | `OPENPROJECT_BASE_URL` | yes | — | Base URL of your OpenProject instance, e.g. `https://op.example.com` |
 | `OPENPROJECT_API_TOKEN` | yes | — | Personal API token |
-| `OPENPROJECT_ENABLE_READ` | no | `true` | Enable all read chains at once |
 | `OPENPROJECT_ALLOWED_PROJECTS_READ` | no | `*` | Readable projects by id, identifier, or title; comma-separated, `*` wildcards supported |
 | `OPENPROJECT_ALLOWED_PROJECTS_WRITE` | no | empty | Writable projects; empty disables all project-scoped writes; always intersected with read scope |
 | `OPENPROJECT_ALLOWED_PROJECTS` | no | — | Backward-compatible alias for `OPENPROJECT_ALLOWED_PROJECTS_READ` |
-| `OPENPROJECT_ENABLE_PROJECT_READ` | no | inherits `OPENPROJECT_ENABLE_READ` | Projects, documents, news, wiki, lifecycle |
-| `OPENPROJECT_ENABLE_MEMBERSHIP_READ` | no | inherits `OPENPROJECT_ENABLE_READ` | Memberships, roles, principals |
-| `OPENPROJECT_ENABLE_WORK_PACKAGE_READ` | no | inherits `OPENPROJECT_ENABLE_READ` | Work packages, relations, attachments, time entries |
-| `OPENPROJECT_ENABLE_VERSION_READ` | no | inherits `OPENPROJECT_ENABLE_READ` | Versions |
-| `OPENPROJECT_ENABLE_BOARD_READ` | no | inherits `OPENPROJECT_ENABLE_READ` | Boards and views |
+| `OPENPROJECT_ENABLE_PROJECT_READ` | no | `true` | Projects, documents, news, wiki, lifecycle |
+| `OPENPROJECT_ENABLE_WORK_PACKAGE_READ` | no | `true` | Work packages, relations, attachments, time entries |
+| `OPENPROJECT_ENABLE_MEMBERSHIP_READ` | no | `true` | Memberships, roles, principals |
+| `OPENPROJECT_ENABLE_VERSION_READ` | no | `true` | Versions |
+| `OPENPROJECT_ENABLE_BOARD_READ` | no | `true` | Boards and views |
 | `OPENPROJECT_HIDE_<ENTITY>_FIELDS` | no | empty | Comma-separated fields to omit from reads and reject on writes; `*` wildcards supported |
 | `OPENPROJECT_HIDE_CUSTOM_FIELDS` | no | empty | Custom field names or keys to omit; `*` wildcards supported |
-| `OPENPROJECT_ENABLE_WRITE` | no | `false` | Enable all write chains at once |
-| `OPENPROJECT_ENABLE_PROJECT_WRITE` | no | inherits `OPENPROJECT_ENABLE_WRITE` | Project create/update/delete |
-| `OPENPROJECT_ENABLE_MEMBERSHIP_WRITE` | no | inherits `OPENPROJECT_ENABLE_WRITE` | Membership create/update/delete |
-| `OPENPROJECT_ENABLE_WORK_PACKAGE_WRITE` | no | inherits `OPENPROJECT_ENABLE_WRITE` | Work-package create/update/delete, comments, relations, attachments, time entries |
-| `OPENPROJECT_ENABLE_VERSION_WRITE` | no | inherits `OPENPROJECT_ENABLE_WRITE` | Version create/update/delete |
-| `OPENPROJECT_ENABLE_BOARD_WRITE` | no | inherits `OPENPROJECT_ENABLE_WRITE` | Board create/update/delete |
+| `OPENPROJECT_ENABLE_ADMIN_WRITE` | no | `false` | User and group management (create/update/delete/lock users, create/update/delete groups). Must be set explicitly — not activated by any other write flag. |
+| `OPENPROJECT_ENABLE_PROJECT_WRITE` | no | `false` | Project create/update/delete, news, documents, grids |
+| `OPENPROJECT_ENABLE_MEMBERSHIP_WRITE` | no | `false` | Project membership create/update/delete |
+| `OPENPROJECT_ENABLE_WORK_PACKAGE_WRITE` | no | `false` | Work-package create/update/delete, comments, relations, attachments, time entries |
+| `OPENPROJECT_ENABLE_VERSION_WRITE` | no | `false` | Version create/update/delete |
+| `OPENPROJECT_ENABLE_BOARD_WRITE` | no | `false` | Board create/update/delete |
 | `OPENPROJECT_AUTO_CONFIRM_WRITE` | no | `false` | Skip the preview step for all writes |
 | `OPENPROJECT_AUTO_CONFIRM_DELETE` | no | inherits `OPENPROJECT_AUTO_CONFIRM_WRITE` | Skip the preview step for deletes |
 | `OPENPROJECT_TIMEOUT` | no | `12` | Request timeout in seconds |
@@ -189,15 +188,7 @@ See the full [tool reference](docs/tools.md) for descriptions of every tool.
 
 ## Integrations
 
-**[Claude Code](docs/claude.md)**
-Configure via `~/.claude.json` for user-wide access, or `.mcp.json` in the project root for repository-scoped access.
-
-**[Codex](docs/codex.md)**
-Configure via project `.codex/config.toml` or `~/.codex/config.toml`; `codex mcp add` is an optional CLI helper.
-
-**[GitHub Copilot](docs/github.md)**
-Configure via `.vscode/mcp.json` in the workspace.
-
+The server communicates over stdio and is compatible with any MCP client. Client-specific setup guides are available in the [`docs/`](docs/) folder.
 
 ---
 
@@ -235,18 +226,29 @@ python3 -m venv .venv
 
 ### Run tests
 
+**Unit tests** (no network — run against `httpx` mocks):
+
 ```bash
 # uv
-uv run pytest tests/ -v
+uv run pytest
 
 # venv
-.venv/bin/python -m pytest tests/ -v
+.venv/bin/python -m pytest
 ```
 
-Tests use `httpx` mocks and run without a live OpenProject instance.
+**Integration tests** (require a live OpenProject instance):
+
+```bash
+OPENPROJECT_BASE_URL=https://op.example.com \
+OPENPROJECT_API_TOKEN=opapi-... \
+OPENPROJECT_TEST_PROJECT=mcp-test \
+uv run pytest -m integration -v
+```
+
+`OPENPROJECT_TEST_PROJECT` is the project identifier used for write tests (default: `mcp-test`). Integration tests are excluded from the default run (`-m 'not integration'`) and must be opted in explicitly.
 
 ### After code changes
 
-The MCP server runs as a subprocess. After any code change, restart the MCP client or reload the server (in Claude Code: `/mcp`) before updated tools become active.
+The MCP server runs as a subprocess. After any code change, restart your MCP client before updated tools become active.
 
 ---

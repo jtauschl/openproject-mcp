@@ -127,8 +127,11 @@ All list tools are bounded and paginated. They return compact summaries — not 
 
 | Tool | Description |
 |---|---|
-| `list_wiki_pages` | List all wiki pages in a project |
 | `get_wiki_page` | Fetch a single wiki page by id |
+
+> **Note:** OpenProject API v3 does not provide a collection endpoint for wiki pages
+> (`GET /api/v3/projects/{id}/wiki_pages` is not implemented). `list_wiki_pages` has
+> therefore been removed. Individual pages can be fetched by id via `get_wiki_page`.
 
 ## Work packages
 
@@ -149,6 +152,8 @@ All list tools are bounded and paginated. They return compact summaries — not 
 | `create_work_package` | Validate and then create a work package; only writes when called again with `confirm=true` |
 | `create_subtask` | Validate and then create a child work package below an existing parent; only writes when called again with `confirm=true` |
 | `update_work_package` | Validate and then update a work package; only writes when called again with `confirm=true` |
+| `bulk_create_work_packages` | Validate and then create multiple work packages in one call; returns per-item results including errors; only writes when called again with `confirm=true` |
+| `bulk_update_work_packages` | Validate and then update multiple work packages in one call; returns per-item results including errors; only writes when called again with `confirm=true` |
 | `delete_work_package` | Validate and then delete a work package; only deletes when called again with `confirm=true` |
 | `add_work_package_comment` | Validate and then add a comment to a work package; `notify=false` by default to avoid change emails; only writes when called again with `confirm=true` |
 | `create_work_package_relation` | Validate and then create a relation between work packages; only writes when called again with `confirm=true` |
@@ -209,6 +214,8 @@ All list tools are bounded and paginated. They return compact summaries — not 
 | `list_grids` | List dashboard grids globally or scoped to a project or user |
 | `get_grid` | Fetch a single grid by id |
 | `create_grid` | Validate and then create a dashboard grid for a scope such as `/my/page` or `/projects/<identifier>`; only writes when called again with `confirm=true` |
+| `update_grid` | Validate and then update a dashboard grid (name, row/column count); only writes when called again with `confirm=true` |
+| `delete_grid` | Validate and then delete a dashboard grid; only deletes when called again with `confirm=true` |
 
 ## User preferences
 

@@ -11,21 +11,24 @@ from openproject_mcp.config import Settings
 from openproject_mcp.tools import (
     add_work_package_comment,
     add_work_package_watcher,
-    create_time_entry,
-    create_board,
-    create_group,
-    create_grid,
-    create_news,
-    create_user,
-    create_work_package_attachment,
+    bulk_create_work_packages,
+    bulk_update_work_packages,
     copy_project,
+    create_board,
+    create_grid,
+    create_group,
+    create_news,
     create_subtask,
+    create_time_entry,
+    create_user,
     create_version,
     create_work_package,
+    create_work_package_attachment,
     create_work_package_relation,
     delete_attachment,
     delete_board,
     delete_file_link,
+    delete_grid,
     delete_group,
     delete_news,
     delete_relation,
@@ -33,61 +36,62 @@ from openproject_mcp.tools import (
     delete_user,
     delete_version,
     delete_work_package,
-    get_grid,
-    get_priority,
-    get_status,
-    get_type,
-    list_grids,
-    list_notifications,
-    list_priorities,
-    list_statuses,
-    list_types,
-    list_work_package_file_links,
-    list_work_package_watchers,
-    lock_user,
-    mark_all_notifications_read,
-    mark_notification_read,
-    remove_work_package_watcher,
-    unlock_user,
-    update_group,
-    update_user,
     get_attachment,
     get_board,
     get_category,
     get_document,
+    get_grid,
     get_instance_configuration,
     get_job_status,
     get_my_project_access,
     get_news,
+    get_priority,
+    get_project_configuration,
     get_project_phase,
     get_project_phase_definition,
-    get_project_configuration,
     get_project_work_package_context,
+    get_status,
     get_time_entry,
+    get_type,
     get_version,
     get_view,
     get_wiki_page,
     get_work_package,
-    list_wiki_pages,
-    list_documents,
-    list_news,
+    list_boards,
     list_categories,
+    list_documents,
+    list_grids,
+    list_news,
+    list_notifications,
+    list_priorities,
+    list_project_memberships,
+    list_project_phase_definitions,
+    list_projects,
+    list_roles,
+    list_statuses,
     list_time_entries,
     list_time_entry_activities,
-    list_views,
-    list_work_package_attachments,
-    list_project_phase_definitions,
-    list_boards,
-    list_projects,
-    list_project_memberships,
-    list_roles,
+    list_types,
     list_versions,
+    list_views,
+
+    list_work_package_attachments,
+    list_work_package_file_links,
+    list_work_package_watchers,
     list_work_packages,
+    lock_user,
+    mark_all_notifications_read,
+    mark_notification_read,
+    remove_work_package_watcher,
     search_work_packages,
+    unlock_user,
     update_board,
     update_document,
+    update_grid,
+    update_group,
     update_news,
     update_time_entry,
+    update_user,
     update_version,
     update_work_package,
 )
@@ -97,8 +101,6 @@ def make_settings() -> Settings:
     return Settings(
         base_url="https://op.example.com",
         api_token="token",
-        enable_read=True,
-        enable_write=False,
         timeout=12,
         verify_ssl=True,
         default_page_size=20,
@@ -1003,11 +1005,19 @@ async def test_grid_tools_pass_expected_arguments() -> None:
         async def create_grid(self, **kwargs):
             return kwargs
 
+        async def update_grid(self, **kwargs):
+            return kwargs
+
+        async def delete_grid(self, **kwargs):
+            return kwargs
+
     ctx = FakeContext(StubClient())  # type: ignore[arg-type]
 
     listed = await list_grids(ctx, scope="/my/page")
     detail = await get_grid(ctx, 2)
     created = await create_grid(ctx, name="My Grid", scope="/projects/demo", row_count=2, column_count=3, confirm=False)
+    updated = await update_grid(ctx, grid_id=55, name="Renamed", row_count=4, confirm=False)
+    deleted = await delete_grid(ctx, grid_id=55, confirm=True)
 
     assert listed["scope"] == "/my/page"
     assert detail["grid_id"] == 2
@@ -1015,6 +1025,21 @@ async def test_grid_tools_pass_expected_arguments() -> None:
     assert created["scope"] == "/projects/demo"
     assert created["row_count"] == 2
     assert created["column_count"] == 3
+    assert updated["grid_id"] == 55
+    assert updated["name"] == "Renamed"
+    assert updated["row_count"] == 4
+    assert deleted["grid_id"] == 55
+    assert deleted["confirm"] is True
+
+
+@pytest.mark.asyncio
+async def test_update_grid_requires_at_least_one_field() -> None:
+    class StubClient:
+        async def update_grid(self, **kwargs):
+            return kwargs
+
+    with pytest.raises(ValueError, match="At least one field"):
+        await update_grid(FakeContext(StubClient()), grid_id=55)  # type: ignore[arg-type]
 
 
 @pytest.mark.asyncio
@@ -1091,40 +1116,101 @@ async def test_list_notifications_returns_normalized_results() -> None:
 
 
 @pytest.mark.asyncio
-async def test_wiki_page_list_tool() -> None:
-    async def handler(request: httpx.Request) -> httpx.Response:
-        if request.url.path == "/api/v3/projects/demo":
-            return httpx.Response(
-                200,
-                json={"_type": "Project", "id": 6, "name": "Demo", "identifier": "demo"},
-                request=request,
-            )
-        if request.url.path == "/api/v3/projects/6/wiki_pages" and request.method == "GET":
-            return httpx.Response(
-                200,
-                json={
-                    "total": 1,
-                    "_embedded": {
-                        "elements": [
-                            {
-                                "id": 30,
-                                "title": "Home",
-                                "_links": {
-                                    "self": {"href": "/api/v3/wiki_pages/30"},
-                                    "project": {"href": "/api/v3/projects/6", "title": "Demo"},
-                                },
-                            }
-                        ]
-                    },
-                },
-                request=request,
-            )
-        raise AssertionError(f"Unexpected request: {request.method} {request.url}")
 
-    client = OpenProjectClient(make_settings(), transport=httpx.MockTransport(handler))
-    ctx = FakeContext(client)
+@pytest.mark.asyncio
+async def test_bulk_create_work_packages_tool_validates_required_fields() -> None:
+    class StubClient:
+        async def bulk_create_work_packages(self, **kwargs):
+            return kwargs
 
-    pages = await list_wiki_pages(ctx, project="demo")
-    assert pages.count == 1 and pages.results[0].title == "Home"
+    with pytest.raises(ValueError, match="items must not be empty"):
+        await bulk_create_work_packages(FakeContext(StubClient()), items=[])  # type: ignore[arg-type]
 
-    await client.aclose()
+    with pytest.raises(ValueError, match=r"items\[0\].project is required"):
+        await bulk_create_work_packages(FakeContext(StubClient()), items=[{"type": "Task", "subject": "X"}])  # type: ignore[arg-type]
+
+    with pytest.raises(ValueError, match=r"items\[0\].type is required"):
+        await bulk_create_work_packages(FakeContext(StubClient()), items=[{"project": "demo", "subject": "X"}])  # type: ignore[arg-type]
+
+    with pytest.raises(ValueError, match=r"items\[0\].subject is required"):
+        await bulk_create_work_packages(FakeContext(StubClient()), items=[{"project": "demo", "type": "Task"}])  # type: ignore[arg-type]
+
+    with pytest.raises(ValueError, match=r"items\[0\].parent_work_package_id must be at least 1"):
+        await bulk_create_work_packages(  # type: ignore[arg-type]
+            FakeContext(StubClient()),
+            items=[{"project": "demo", "type": "Task", "subject": "X", "parent_work_package_id": 0}],
+        )
+
+
+@pytest.mark.asyncio
+async def test_bulk_create_work_packages_tool_passes_validated_items() -> None:
+    received: list = []
+
+    class StubClient:
+        async def bulk_create_work_packages(self, **kwargs):
+            received.extend(kwargs["items"])
+            return {"action": "bulk_create", "total": len(kwargs["items"]), "succeeded": len(kwargs["items"]), "failed": 0, "confirmed": kwargs["confirm"], "requires_confirmation": not kwargs["confirm"], "message": "ok", "items": []}
+
+    await bulk_create_work_packages(
+        FakeContext(StubClient()),  # type: ignore[arg-type]
+        items=[
+            {"project": "demo", "type": "Task", "subject": "WP 1", "start_date": "2026-01-01", "parent_work_package_id": 7},
+            {"project": "demo", "type": "Feature", "subject": "WP 2"},
+        ],
+        confirm=False,
+    )
+
+    assert len(received) == 2
+    assert received[0]["project"] == "demo"
+    assert received[0]["subject"] == "WP 1"
+    assert received[0]["start_date"] == "2026-01-01"
+    assert received[0]["parent_work_package_id"] == 7
+    assert received[1]["type"] == "Feature"
+
+
+@pytest.mark.asyncio
+async def test_bulk_update_work_packages_tool_validates_required_fields() -> None:
+    class StubClient:
+        async def bulk_update_work_packages(self, **kwargs):
+            return kwargs
+
+    with pytest.raises(ValueError, match="items must not be empty"):
+        await bulk_update_work_packages(FakeContext(StubClient()), items=[])  # type: ignore[arg-type]
+
+    with pytest.raises(ValueError, match=r"items\[0\].work_package_id is required"):
+        await bulk_update_work_packages(FakeContext(StubClient()), items=[{"subject": "X"}])  # type: ignore[arg-type]
+
+    with pytest.raises(ValueError, match=r"items\[0\]: at least one field to update is required"):
+        await bulk_update_work_packages(FakeContext(StubClient()), items=[{"work_package_id": 1}])  # type: ignore[arg-type]
+
+    with pytest.raises(ValueError, match=r"items\[0\].parent_work_package_id must be at least 1"):
+        await bulk_update_work_packages(  # type: ignore[arg-type]
+            FakeContext(StubClient()),
+            items=[{"work_package_id": 1, "parent_work_package_id": -1}],
+        )
+
+
+@pytest.mark.asyncio
+async def test_bulk_update_work_packages_tool_passes_validated_items() -> None:
+    received: list = []
+
+    class StubClient:
+        async def bulk_update_work_packages(self, **kwargs):
+            received.extend(kwargs["items"])
+            return {"action": "bulk_update", "total": len(kwargs["items"]), "succeeded": len(kwargs["items"]), "failed": 0, "confirmed": kwargs["confirm"], "requires_confirmation": not kwargs["confirm"], "message": "ok", "items": []}
+
+    await bulk_update_work_packages(
+        FakeContext(StubClient()),  # type: ignore[arg-type]
+        items=[
+            {"work_package_id": 10, "subject": "New title", "status": "In progress", "parent_work_package_id": 30},
+            {"work_package_id": 20, "due_date": "2026-12-31"},
+        ],
+        confirm=True,
+    )
+
+    assert len(received) == 2
+    assert received[0]["work_package_id"] == 10
+    assert received[0]["subject"] == "New title"
+    assert received[0]["status"] == "In progress"
+    assert received[0]["parent_work_package_id"] == 30
+    assert received[1]["due_date"] == "2026-12-31"

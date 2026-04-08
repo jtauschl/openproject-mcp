@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import logging
 import os
+from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Mapping
 from urllib.parse import urlparse
 
 
@@ -53,8 +53,6 @@ HIDE_FIELD_ENV_BY_ENTITY: dict[str, str] = {
 class Settings:
     base_url: str
     api_token: str
-    enable_read: bool
-    enable_write: bool
     timeout: float
     verify_ssl: bool
     default_page_size: int
@@ -79,11 +77,12 @@ class Settings:
     enable_membership_write: bool = False
     enable_version_write: bool = False
     enable_board_write: bool = False
+    enable_admin_write: bool = False
     auto_confirm_write: bool = False
     auto_confirm_delete: bool = False
 
     def read_enabled(self, scope: str) -> bool:
-        scoped = {
+        return {
             "work_package": self.enable_work_package_read,
             "project": self.enable_project_read,
             "membership": self.enable_membership_read,
@@ -92,17 +91,15 @@ class Settings:
             "version": self.enable_version_read,
             "board": self.enable_board_read,
         }.get(scope, True)
-        return self.enable_read and scoped
 
     def write_enabled(self, scope: str) -> bool:
-        scoped = {
+        return {
             "work_package": self.enable_work_package_write,
             "project": self.enable_project_write,
             "membership": self.enable_membership_write,
             "version": self.enable_version_write,
             "board": self.enable_board_write,
-        }.get(scope, self.enable_write)
-        return self.enable_write or scoped
+        }.get(scope, False)
 
     @property
     def project_write_scope_configured(self) -> bool:
@@ -117,12 +114,10 @@ class Settings:
         return f"{self.base_url}/api/v3"
 
     @classmethod
-    def from_env(cls, environ: Mapping[str, str] | None = None) -> "Settings":
+    def from_env(cls, environ: Mapping[str, str] | None = None) -> Settings:
         env = environ or os.environ
         base_url = _parse_base_url(env.get("OPENPROJECT_BASE_URL"))
         api_token = _require_non_empty(env.get("OPENPROJECT_API_TOKEN"), "OPENPROJECT_API_TOKEN")
-        enable_read = _parse_bool(env.get("OPENPROJECT_ENABLE_READ"), "OPENPROJECT_ENABLE_READ", default=True)
-        enable_write = _parse_bool(env.get("OPENPROJECT_ENABLE_WRITE"), "OPENPROJECT_ENABLE_WRITE", default=False)
         allowed_projects = _parse_csv(env.get("OPENPROJECT_ALLOWED_PROJECTS_READ") or env.get("OPENPROJECT_ALLOWED_PROJECTS"))
         allowed_write_projects_configured = "OPENPROJECT_ALLOWED_PROJECTS_WRITE" in env
         allowed_write_projects = _parse_csv(env.get("OPENPROJECT_ALLOWED_PROJECTS_WRITE"))
@@ -163,27 +158,32 @@ class Settings:
         enable_work_package_write = _parse_bool(
             env.get("OPENPROJECT_ENABLE_WORK_PACKAGE_WRITE"),
             "OPENPROJECT_ENABLE_WORK_PACKAGE_WRITE",
-            default=enable_write,
+            default=False,
         )
         enable_project_write = _parse_bool(
             env.get("OPENPROJECT_ENABLE_PROJECT_WRITE"),
             "OPENPROJECT_ENABLE_PROJECT_WRITE",
-            default=enable_write,
+            default=False,
         )
         enable_membership_write = _parse_bool(
             env.get("OPENPROJECT_ENABLE_MEMBERSHIP_WRITE"),
             "OPENPROJECT_ENABLE_MEMBERSHIP_WRITE",
-            default=enable_write,
+            default=False,
         )
         enable_version_write = _parse_bool(
             env.get("OPENPROJECT_ENABLE_VERSION_WRITE"),
             "OPENPROJECT_ENABLE_VERSION_WRITE",
-            default=enable_write,
+            default=False,
         )
         enable_board_write = _parse_bool(
             env.get("OPENPROJECT_ENABLE_BOARD_WRITE"),
             "OPENPROJECT_ENABLE_BOARD_WRITE",
-            default=enable_write,
+            default=False,
+        )
+        enable_admin_write = _parse_bool(
+            env.get("OPENPROJECT_ENABLE_ADMIN_WRITE"),
+            "OPENPROJECT_ENABLE_ADMIN_WRITE",
+            default=False,
         )
         auto_confirm_write = _parse_bool(
             env.get("OPENPROJECT_AUTO_CONFIRM_WRITE"),
@@ -225,8 +225,6 @@ class Settings:
         return cls(
             base_url=base_url,
             api_token=api_token,
-            enable_read=enable_read,
-            enable_write=enable_write,
             timeout=timeout,
             verify_ssl=verify_ssl,
             default_page_size=default_page_size,
@@ -251,6 +249,7 @@ class Settings:
             enable_membership_write=enable_membership_write,
             enable_version_write=enable_version_write,
             enable_board_write=enable_board_write,
+            enable_admin_write=enable_admin_write,
             auto_confirm_write=auto_confirm_write,
             auto_confirm_delete=auto_confirm_delete,
         )

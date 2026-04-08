@@ -15,6 +15,7 @@ from .client import (
     PermissionDeniedError,
     TransportError,
 )
+from .config import Settings
 from .models import (
     ActionListResult,
     ActivityListResult,
@@ -25,10 +26,12 @@ from .models import (
     BoardDetail,
     BoardListResult,
     BoardWriteResult,
+    BulkWorkPackageWriteResult,
+    CapabilityListResult,
     CategoryListResult,
     CategorySummary,
-    CapabilityListResult,
     CurrentUser,
+    CustomOptionSummary,
     DocumentDetail,
     DocumentListResult,
     DocumentWriteResult,
@@ -40,6 +43,8 @@ from .models import (
     GroupDetail,
     GroupListResult,
     GroupWriteResult,
+    HelpTextListResult,
+    HelpTextSummary,
     InstanceConfiguration,
     JobStatusDetail,
     MembershipListResult,
@@ -48,38 +53,32 @@ from .models import (
     NewsDetail,
     NewsListResult,
     NewsWriteResult,
+    NonWorkingDayListResult,
     NotificationListResult,
+    PrincipalListResult,
     PriorityListResult,
     PrioritySummary,
-    PrincipalListResult,
+    ProjectAccessSummary,
+    ProjectAdminContext,
+    ProjectConfiguration,
+    ProjectCopyResult,
+    ProjectListResult,
+    ProjectPhase,
+    ProjectPhaseDefinition,
+    ProjectPhaseDefinitionListResult,
+    ProjectSummary,
+    ProjectWorkPackageContext,
+    ProjectWriteResult,
     QueryColumnSummary,
     QueryFilterInstanceSchemaListResult,
     QueryFilterInstanceSchemaSummary,
     QueryFilterSummary,
     QueryOperatorSummary,
     QuerySortBySummary,
-    ProjectListResult,
-    ProjectAccessSummary,
-    ProjectAdminContext,
-    ProjectConfiguration,
-    ProjectCopyResult,
-    ProjectPhase,
-    ProjectPhaseDefinition,
-    ProjectPhaseDefinitionListResult,
-    ProjectSummary,
-    ProjectWriteResult,
-    ProjectWorkPackageContext,
-    CustomOptionSummary,
-    HelpTextListResult,
-    HelpTextSummary,
-    NonWorkingDayListResult,
     RelationListResult,
     RelationUpdateResult,
     RelationWriteResult,
     RenderedText,
-    UserPreferences,
-    UserPreferencesWriteResult,
-    WorkingDayListResult,
     RoleListResult,
     StatusListResult,
     StatusSummary,
@@ -91,19 +90,22 @@ from .models import (
     TypeSummary,
     UserDetail,
     UserListResult,
+    UserPreferences,
+    UserPreferencesWriteResult,
     UserWriteResult,
-    ViewDetail,
-    ViewListResult,
     VersionDetail,
     VersionListResult,
     VersionWriteResult,
+    ViewDetail,
+    ViewListResult,
     WatcherListResult,
     WatcherWriteResult,
+    WikiPageDetail,
+    WikiPageListResult,
+    WorkingDayListResult,
     WorkPackageDetail,
     WorkPackageListResult,
     WorkPackageWriteResult,
-    WikiPageDetail,
-    WikiPageListResult,
 )
 
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -112,114 +114,26 @@ PROJECT_REF_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 RELATION_TYPE_RE = re.compile(r"^(relates|duplicates|duplicated|blocks|blocked|precedes|follows|includes|partof|requires|required)$")
 
 
-def register_tools(mcp: FastMCP) -> None:
-    mcp.tool()(list_projects)
-    mcp.tool()(get_project)
-    mcp.tool()(get_project_admin_context)
-    mcp.tool()(get_project_configuration)
-    mcp.tool()(create_project)
-    mcp.tool()(copy_project)
-    mcp.tool()(get_job_status)
-    mcp.tool()(update_project)
-    mcp.tool()(delete_project)
-    mcp.tool()(list_roles)
-    mcp.tool()(list_principals)
-    mcp.tool()(list_users)
-    mcp.tool()(get_user)
-    mcp.tool()(list_groups)
-    mcp.tool()(get_group)
+def register_tools(mcp: FastMCP, settings: Settings) -> None:
+    # Always-available read tools
+    mcp.tool()(get_current_user)
+    mcp.tool()(get_instance_configuration)
     mcp.tool()(list_actions)
     mcp.tool()(list_capabilities)
+    mcp.tool()(get_job_status)
     mcp.tool()(get_query_filter)
     mcp.tool()(get_query_column)
     mcp.tool()(get_query_operator)
     mcp.tool()(get_query_sort_by)
     mcp.tool()(list_query_filter_instance_schemas)
     mcp.tool()(get_query_filter_instance_schema)
-    mcp.tool()(list_project_memberships)
-    mcp.tool()(get_membership)
-    mcp.tool()(create_membership)
-    mcp.tool()(update_membership)
-    mcp.tool()(delete_membership)
-    mcp.tool()(get_my_project_access)
-    mcp.tool()(get_instance_configuration)
-    mcp.tool()(list_project_phase_definitions)
-    mcp.tool()(get_project_phase_definition)
-    mcp.tool()(get_project_phase)
-    mcp.tool()(list_views)
-    mcp.tool()(get_view)
-    mcp.tool()(list_documents)
-    mcp.tool()(get_document)
-    mcp.tool()(update_document)
-    mcp.tool()(list_news)
-    mcp.tool()(get_news)
-    mcp.tool()(create_news)
-    mcp.tool()(update_news)
-    mcp.tool()(delete_news)
-    mcp.tool()(get_wiki_page)
-    mcp.tool()(list_wiki_pages)
-    mcp.tool()(list_categories)
-    mcp.tool()(get_category)
-    mcp.tool()(get_project_work_package_context)
-    mcp.tool()(list_work_packages)
-    mcp.tool()(search_work_packages)
-    mcp.tool()(create_work_package)
-    mcp.tool()(create_subtask)
-    mcp.tool()(update_work_package)
-    mcp.tool()(delete_work_package)
-    mcp.tool()(add_work_package_comment)
-    mcp.tool()(create_work_package_relation)
-    mcp.tool()(delete_relation)
-    mcp.tool()(get_work_package)
-    mcp.tool()(get_work_package_relations)
-    mcp.tool()(get_work_package_activities)
-    mcp.tool()(list_my_open_work_packages)
-    mcp.tool()(list_versions)
-    mcp.tool()(get_version)
-    mcp.tool()(create_version)
-    mcp.tool()(update_version)
-    mcp.tool()(delete_version)
-    mcp.tool()(list_boards)
-    mcp.tool()(get_board)
-    mcp.tool()(create_board)
-    mcp.tool()(update_board)
-    mcp.tool()(delete_board)
-    mcp.tool()(list_work_package_attachments)
-    mcp.tool()(get_attachment)
-    mcp.tool()(create_work_package_attachment)
-    mcp.tool()(delete_attachment)
-    mcp.tool()(list_time_entry_activities)
-    mcp.tool()(list_time_entries)
-    mcp.tool()(get_time_entry)
-    mcp.tool()(create_time_entry)
-    mcp.tool()(update_time_entry)
-    mcp.tool()(delete_time_entry)
-    mcp.tool()(get_current_user)
     mcp.tool()(list_statuses)
     mcp.tool()(get_status)
     mcp.tool()(list_priorities)
     mcp.tool()(get_priority)
     mcp.tool()(list_types)
     mcp.tool()(get_type)
-    mcp.tool()(list_work_package_watchers)
-    mcp.tool()(add_work_package_watcher)
-    mcp.tool()(remove_work_package_watcher)
     mcp.tool()(list_notifications)
-    mcp.tool()(mark_notification_read)
-    mcp.tool()(mark_all_notifications_read)
-    mcp.tool()(create_user)
-    mcp.tool()(update_user)
-    mcp.tool()(delete_user)
-    mcp.tool()(lock_user)
-    mcp.tool()(unlock_user)
-    mcp.tool()(create_group)
-    mcp.tool()(update_group)
-    mcp.tool()(delete_group)
-    mcp.tool()(list_work_package_file_links)
-    mcp.tool()(delete_file_link)
-    mcp.tool()(list_grids)
-    mcp.tool()(get_grid)
-    mcp.tool()(create_grid)
     mcp.tool()(get_my_preferences)
     mcp.tool()(update_my_preferences)
     mcp.tool()(render_text)
@@ -228,8 +142,133 @@ def register_tools(mcp: FastMCP) -> None:
     mcp.tool()(list_working_days)
     mcp.tool()(list_non_working_days)
     mcp.tool()(get_custom_option)
+    mcp.tool()(list_documents)
+    mcp.tool()(get_document)
+    mcp.tool()(list_news)
+    mcp.tool()(get_news)
+    mcp.tool()(get_wiki_page)
+    mcp.tool()(list_views)
+    mcp.tool()(get_view)
+    mcp.tool()(list_grids)
+    mcp.tool()(get_grid)
+    mcp.tool()(list_categories)
+    mcp.tool()(get_category)
+    mcp.tool()(list_time_entry_activities)
+    mcp.tool()(list_time_entries)
+    mcp.tool()(get_time_entry)
     mcp.tool()(list_relations)
-    mcp.tool()(update_relation)
+    mcp.tool()(list_project_phase_definitions)
+    mcp.tool()(get_project_phase_definition)
+    mcp.tool()(get_project_phase)
+
+    # Scoped read: project
+    if settings.read_enabled("project"):
+        mcp.tool()(list_projects)
+        mcp.tool()(get_project)
+        mcp.tool()(get_project_admin_context)
+        mcp.tool()(get_project_configuration)
+        mcp.tool()(get_project_work_package_context)
+        mcp.tool()(get_my_project_access)
+
+    # Scoped read: work_package
+    if settings.read_enabled("work_package"):
+        mcp.tool()(list_work_packages)
+        mcp.tool()(search_work_packages)
+        mcp.tool()(get_work_package)
+        mcp.tool()(list_my_open_work_packages)
+        mcp.tool()(get_work_package_activities)
+        mcp.tool()(get_work_package_relations)
+        mcp.tool()(list_work_package_attachments)
+        mcp.tool()(get_attachment)
+        mcp.tool()(list_work_package_file_links)
+        mcp.tool()(list_work_package_watchers)
+
+    # Scoped read: membership
+    if settings.read_enabled("membership"):
+        mcp.tool()(list_project_memberships)
+        mcp.tool()(get_membership)
+        mcp.tool()(list_roles)
+        mcp.tool()(list_principals)
+        mcp.tool()(list_users)
+        mcp.tool()(get_user)
+        mcp.tool()(list_groups)
+        mcp.tool()(get_group)
+
+    # Scoped read: version
+    if settings.read_enabled("version"):
+        mcp.tool()(list_versions)
+        mcp.tool()(get_version)
+
+    # Scoped read: board
+    if settings.read_enabled("board"):
+        mcp.tool()(list_boards)
+        mcp.tool()(get_board)
+
+    # Scoped write: project
+    if settings.write_enabled("project"):
+        mcp.tool()(create_project)
+        mcp.tool()(update_project)
+        mcp.tool()(delete_project)
+        mcp.tool()(copy_project)
+        mcp.tool()(create_news)
+        mcp.tool()(update_news)
+        mcp.tool()(delete_news)
+        mcp.tool()(update_document)
+        mcp.tool()(create_grid)
+        mcp.tool()(update_grid)
+        mcp.tool()(delete_grid)
+
+    # Scoped write: work_package
+    if settings.write_enabled("work_package"):
+        mcp.tool()(create_work_package)
+        mcp.tool()(create_subtask)
+        mcp.tool()(update_work_package)
+        mcp.tool()(bulk_create_work_packages)
+        mcp.tool()(bulk_update_work_packages)
+        mcp.tool()(delete_work_package)
+        mcp.tool()(add_work_package_comment)
+        mcp.tool()(create_work_package_relation)
+        mcp.tool()(delete_relation)
+        mcp.tool()(create_work_package_attachment)
+        mcp.tool()(delete_attachment)
+        mcp.tool()(add_work_package_watcher)
+        mcp.tool()(remove_work_package_watcher)
+        mcp.tool()(create_time_entry)
+        mcp.tool()(update_time_entry)
+        mcp.tool()(delete_time_entry)
+        mcp.tool()(mark_notification_read)
+        mcp.tool()(mark_all_notifications_read)
+        mcp.tool()(update_relation)
+        mcp.tool()(delete_file_link)
+
+    # Scoped write: membership
+    if settings.write_enabled("membership"):
+        mcp.tool()(create_membership)
+        mcp.tool()(update_membership)
+        mcp.tool()(delete_membership)
+
+    # Scoped write: version
+    if settings.write_enabled("version"):
+        mcp.tool()(create_version)
+        mcp.tool()(update_version)
+        mcp.tool()(delete_version)
+
+    # Scoped write: board
+    if settings.write_enabled("board"):
+        mcp.tool()(create_board)
+        mcp.tool()(update_board)
+        mcp.tool()(delete_board)
+
+    # Admin write: instance-global user/group management
+    if settings.enable_admin_write:
+        mcp.tool()(create_user)
+        mcp.tool()(update_user)
+        mcp.tool()(delete_user)
+        mcp.tool()(lock_user)
+        mcp.tool()(unlock_user)
+        mcp.tool()(create_group)
+        mcp.tool()(update_group)
+        mcp.tool()(delete_group)
 
 
 async def list_projects(
@@ -882,17 +921,6 @@ async def get_wiki_page(
     return await _run_tool(client.get_wiki_page(safe_id))
 
 
-async def list_wiki_pages(
-    ctx: Context,
-    project: str,
-) -> WikiPageListResult:
-    """List all wiki pages in a project."""
-    client = _client_from_context(ctx)
-    safe_project = _validate_project_ref(project)
-    return await _run_tool(client.list_wiki_pages(safe_project))
-
-
-
 
 
 async def list_categories(
@@ -1138,6 +1166,133 @@ async def update_work_package(
             confirm=confirm,
         )
     )
+
+
+async def bulk_create_work_packages(
+    ctx: Context,
+    items: list[dict[str, Any]],
+    confirm: bool = False,
+) -> BulkWorkPackageWriteResult:
+    """Create multiple work packages in one call.
+
+    Each item in `items` must contain `project`, `type`, and `subject`. Optional fields per item:
+    `description`, `version`, `project_phase`, `assignee`, `responsible`, `priority`, `category`,
+    `custom_fields`, `parent_work_package_id`, `start_date` (YYYY-MM-DD), `due_date` (YYYY-MM-DD).
+
+    With confirm=false (default) all items are validated and a preview is returned.
+    With confirm=true all items are created. Failed items are reported in the result — the operation
+    continues for remaining items regardless of individual failures.
+    """
+    client = _client_from_context(ctx)
+    if not items:
+        raise ValueError("items must not be empty.")
+    safe_items: list[dict[str, Any]] = []
+    for i, item in enumerate(items):
+        if not isinstance(item, dict):
+            raise ValueError(f"items[{i}] must be an object.")
+        project = item.get("project")
+        type_ = item.get("type")
+        subject = item.get("subject")
+        safe_parent_work_package_id = (
+            _validate_positive_int(item.get("parent_work_package_id"), field_name=f"items[{i}].parent_work_package_id")
+            if item.get("parent_work_package_id") is not None
+            else None
+        )
+        if not project:
+            raise ValueError(f"items[{i}].project is required.")
+        if not type_:
+            raise ValueError(f"items[{i}].type is required.")
+        if not subject:
+            raise ValueError(f"items[{i}].subject is required.")
+        safe_items.append({
+            "project": _validate_project_ref(str(project)),
+            "type": _validate_required_query(str(type_), field_name=f"items[{i}].type", max_length=100),
+            "subject": _validate_required_query(str(subject), field_name=f"items[{i}].subject", max_length=255),
+            "description": _validate_optional_text(item.get("description"), field_name=f"items[{i}].description", max_length=10_000),
+            "version": _validate_optional_query(item.get("version"), field_name=f"items[{i}].version", max_length=100),
+            "project_phase": _validate_optional_query(item.get("project_phase"), field_name=f"items[{i}].project_phase", max_length=100),
+            "assignee": _validate_optional_user_ref(item.get("assignee")),
+            "responsible": _validate_optional_user_ref(item.get("responsible")),
+            "priority": _validate_optional_query(item.get("priority"), field_name=f"items[{i}].priority", max_length=100),
+            "category": _validate_optional_query(item.get("category"), field_name=f"items[{i}].category", max_length=100),
+            "custom_fields": _validate_optional_custom_fields(item.get("custom_fields")),
+            "parent_work_package_id": safe_parent_work_package_id,
+            "start_date": _validate_optional_date(item.get("start_date"), field_name=f"items[{i}].start_date"),
+            "due_date": _validate_optional_date(item.get("due_date"), field_name=f"items[{i}].due_date"),
+        })
+    return await _run_tool(client.bulk_create_work_packages(items=safe_items, confirm=confirm))
+
+
+async def bulk_update_work_packages(
+    ctx: Context,
+    items: list[dict[str, Any]],
+    confirm: bool = False,
+) -> BulkWorkPackageWriteResult:
+    """Update multiple work packages in one call.
+
+    Each item in `items` must contain `work_package_id`. At least one other field must be present per item.
+    Optional fields per item: `subject`, `description`, `type`, `version`, `project_phase`, `status`,
+    `assignee`, `responsible`, `priority`, `category`, `custom_fields`, `parent_work_package_id`,
+    `start_date` (YYYY-MM-DD), `due_date` (YYYY-MM-DD).
+
+    With confirm=false (default) all items are validated and a preview is returned.
+    With confirm=true all items are updated. Failed items are reported in the result — the operation
+    continues for remaining items regardless of individual failures.
+    """
+    client = _client_from_context(ctx)
+    if not items:
+        raise ValueError("items must not be empty.")
+    safe_items: list[dict[str, Any]] = []
+    for i, item in enumerate(items):
+        if not isinstance(item, dict):
+            raise ValueError(f"items[{i}] must be an object.")
+        wp_id = item.get("work_package_id")
+        if wp_id is None:
+            raise ValueError(f"items[{i}].work_package_id is required.")
+        safe_id = _validate_positive_int(wp_id, field_name=f"items[{i}].work_package_id")
+        safe_subject = _validate_optional_query(item.get("subject"), field_name=f"items[{i}].subject", max_length=255)
+        safe_description = _validate_optional_text(item.get("description"), field_name=f"items[{i}].description", max_length=10_000)
+        safe_type = _validate_optional_query(item.get("type"), field_name=f"items[{i}].type", max_length=100)
+        safe_version = _validate_optional_query(item.get("version"), field_name=f"items[{i}].version", max_length=100)
+        safe_project_phase = _validate_optional_query(item.get("project_phase"), field_name=f"items[{i}].project_phase", max_length=100)
+        safe_status = _validate_optional_query(item.get("status"), field_name=f"items[{i}].status", max_length=100)
+        safe_assignee = _validate_optional_user_ref(item.get("assignee"))
+        safe_responsible = _validate_optional_user_ref(item.get("responsible"))
+        safe_priority = _validate_optional_query(item.get("priority"), field_name=f"items[{i}].priority", max_length=100)
+        safe_category = _validate_optional_query(item.get("category"), field_name=f"items[{i}].category", max_length=100)
+        safe_custom_fields = _validate_optional_custom_fields(item.get("custom_fields"))
+        safe_parent_work_package_id = (
+            _validate_positive_int(item.get("parent_work_package_id"), field_name=f"items[{i}].parent_work_package_id")
+            if item.get("parent_work_package_id") is not None
+            else None
+        )
+        safe_start_date = _validate_optional_date(item.get("start_date"), field_name=f"items[{i}].start_date")
+        safe_due_date = _validate_optional_date(item.get("due_date"), field_name=f"items[{i}].due_date")
+        if not any(v is not None for v in (
+            safe_subject, safe_description, safe_type, safe_version, safe_project_phase,
+            safe_status, safe_assignee, safe_responsible, safe_priority, safe_category,
+            safe_custom_fields, safe_start_date, safe_due_date,
+            safe_parent_work_package_id,
+        )):
+            raise ValueError(f"items[{i}]: at least one field to update is required.")
+        safe_items.append({
+            "work_package_id": safe_id,
+            "subject": safe_subject,
+            "description": safe_description,
+            "type": safe_type,
+            "version": safe_version,
+            "project_phase": safe_project_phase,
+            "status": safe_status,
+            "assignee": safe_assignee,
+            "responsible": safe_responsible,
+            "priority": safe_priority,
+            "category": safe_category,
+            "custom_fields": safe_custom_fields,
+            "parent_work_package_id": safe_parent_work_package_id,
+            "start_date": safe_start_date,
+            "due_date": safe_due_date,
+        })
+    return await _run_tool(client.bulk_update_work_packages(items=safe_items, confirm=confirm))
 
 
 async def delete_work_package(
@@ -2088,6 +2243,47 @@ async def create_grid(
             confirm=confirm,
         )
     )
+
+
+async def update_grid(
+    ctx: Context,
+    grid_id: int,
+    name: str | None = None,
+    row_count: int | None = None,
+    column_count: int | None = None,
+    confirm: bool = False,
+) -> GridWriteResult:
+    """Prepare or update a dashboard grid.
+
+    Omitted fields stay unchanged. Set confirm=true to write.
+    """
+    client = _client_from_context(ctx)
+    safe_id = _validate_positive_int(grid_id, field_name="grid_id")
+    safe_name = _validate_optional_query(name, field_name="name", max_length=255)
+    safe_row_count = _validate_positive_int(row_count, field_name="row_count") if row_count is not None else None
+    safe_column_count = _validate_positive_int(column_count, field_name="column_count") if column_count is not None else None
+    if safe_name is None and safe_row_count is None and safe_column_count is None:
+        raise ValueError("At least one field to update is required.")
+    return await _run_tool(
+        client.update_grid(
+            grid_id=safe_id,
+            name=safe_name,
+            row_count=safe_row_count,
+            column_count=safe_column_count,
+            confirm=confirm,
+        )
+    )
+
+
+async def delete_grid(
+    ctx: Context,
+    grid_id: int,
+    confirm: bool = False,
+) -> GridWriteResult:
+    """Prepare or delete a dashboard grid. Only deletes when called again with confirm=true."""
+    client = _client_from_context(ctx)
+    safe_id = _validate_positive_int(grid_id, field_name="grid_id")
+    return await _run_tool(client.delete_grid(grid_id=safe_id, confirm=confirm))
 
 
 async def get_my_preferences(ctx: Context) -> UserPreferences:

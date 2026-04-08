@@ -3,7 +3,8 @@ from __future__ import annotations
 import json
 import logging
 import mimetypes
-from dataclasses import fields as dataclass_fields, is_dataclass, replace
+from dataclasses import fields as dataclass_fields
+from dataclasses import is_dataclass, replace
 from fnmatch import fnmatchcase
 from pathlib import Path
 from typing import Any
@@ -26,11 +27,14 @@ from .models import (
     BoardListResult,
     BoardSummary,
     BoardWriteResult,
-    CategoryListResult,
-    CategorySummary,
+    BulkWorkPackageItemResult,
+    BulkWorkPackageWriteResult,
     CapabilityListResult,
     CapabilitySummary,
+    CategoryListResult,
+    CategorySummary,
     CurrentUser,
+    CustomOptionSummary,
     DocumentDetail,
     DocumentListResult,
     DocumentSummary,
@@ -38,24 +42,15 @@ from .models import (
     FileLinkListResult,
     FileLinkSummary,
     FileLinkWriteResult,
-    CustomOptionSummary,
     GridListResult,
     GridSummary,
     GridWriteResult,
-    HelpTextListResult,
-    HelpTextSummary,
-    NonWorkingDay,
-    NonWorkingDayListResult,
-    RelationUpdateResult,
-    RenderedText,
-    UserPreferences,
-    UserPreferencesWriteResult,
-    WorkingDay,
-    WorkingDayListResult,
     GroupDetail,
     GroupListResult,
     GroupSummary,
     GroupWriteResult,
+    HelpTextListResult,
+    HelpTextSummary,
     InstanceConfiguration,
     JobStatusDetail,
     MembershipListResult,
@@ -65,6 +60,8 @@ from .models import (
     NewsListResult,
     NewsSummary,
     NewsWriteResult,
+    NonWorkingDay,
+    NonWorkingDayListResult,
     NotificationListResult,
     NotificationSummary,
     OptionValue,
@@ -72,27 +69,29 @@ from .models import (
     PrincipalSummary,
     PriorityListResult,
     PrioritySummary,
+    ProjectAccessSummary,
+    ProjectAdminContext,
+    ProjectConfiguration,
+    ProjectCopyResult,
+    ProjectFieldSchema,
+    ProjectListResult,
+    ProjectPhase,
+    ProjectPhaseDefinition,
+    ProjectPhaseDefinitionListResult,
+    ProjectSummary,
+    ProjectWorkPackageContext,
+    ProjectWriteResult,
     QueryColumnSummary,
     QueryFilterInstanceSchemaListResult,
     QueryFilterInstanceSchemaSummary,
     QueryFilterSummary,
     QueryOperatorSummary,
     QuerySortBySummary,
-    ProjectAdminContext,
-    ProjectConfiguration,
-    ProjectCopyResult,
-    ProjectPhase,
-    ProjectPhaseDefinition,
-    ProjectPhaseDefinitionListResult,
-    ProjectListResult,
-    ProjectAccessSummary,
-    ProjectFieldSchema,
-    ProjectSummary,
-    ProjectWriteResult,
-    ProjectWorkPackageContext,
     RelationListResult,
     RelationSummary,
+    RelationUpdateResult,
     RelationWriteResult,
+    RenderedText,
     RoleListResult,
     RoleSummary,
     StatusListResult,
@@ -106,25 +105,29 @@ from .models import (
     TypeSummary,
     UserDetail,
     UserListResult,
+    UserPreferences,
+    UserPreferencesWriteResult,
     UserSummary,
     UserWriteResult,
-    ViewDetail,
-    ViewListResult,
-    ViewSummary,
     VersionDetail,
     VersionListResult,
     VersionSummary,
     VersionWriteResult,
+    ViewDetail,
+    ViewListResult,
+    ViewSummary,
     WatcherListResult,
     WatcherSummary,
     WatcherWriteResult,
+    WikiPageDetail,
+    WikiPageListResult,
+    WorkingDay,
+    WorkingDayListResult,
     WorkPackageDetail,
     WorkPackageFieldSchema,
     WorkPackageListResult,
     WorkPackageSummary,
     WorkPackageWriteResult,
-    WikiPageDetail,
-    WikiPageListResult,
 )
 
 LOGGER = logging.getLogger(__name__)
@@ -1268,19 +1271,6 @@ class OpenProjectClient:
         self._ensure_project_link_allowed(payload.get("_links", {}).get("project"))
         return self.normalize_wiki_page(payload)
 
-    async def list_wiki_pages(self, project: str) -> WikiPageListResult:
-        self._ensure_read_enabled("project")
-        project_payload = await self._get(f"projects/{quote(project, safe='')}")
-        self._ensure_project_allowed(project, payload=project_payload)
-        project_id = int(project_payload["id"])
-        payload = await self._get(f"projects/{project_id}/wiki_pages")
-        results = [
-            self.normalize_wiki_page(item)
-            for item in payload.get("_embedded", {}).get("elements", [])
-            if isinstance(item, dict)
-        ]
-        total = payload.get("total", len(results))
-        return WikiPageListResult(count=len(results), total=total, results=results)
 
     async def list_categories(self, project_ref: str) -> CategoryListResult:
         self._ensure_read_enabled("project")
@@ -2040,6 +2030,109 @@ class OpenProjectClient:
             write_method="PATCH",
             work_package_id=work_package_id,
             project_name=_link_title(current.get("_links", {}).get("project")),
+        )
+
+    async def bulk_create_work_packages(
+        self,
+        *,
+        items: list[dict[str, Any]],
+        confirm: bool = False,
+    ) -> BulkWorkPackageWriteResult:
+        item_results: list[BulkWorkPackageItemResult] = []
+        for i, item in enumerate(items):
+            try:
+                result = await self.create_work_package(
+                    project=item["project"],
+                    type=item["type"],
+                    subject=item["subject"],
+                    description=item.get("description"),
+                    version=item.get("version"),
+                    project_phase=item.get("project_phase"),
+                    assignee=item.get("assignee"),
+                    responsible=item.get("responsible"),
+                    priority=item.get("priority"),
+                    category=item.get("category"),
+                    custom_fields=item.get("custom_fields"),
+                    parent_work_package_id=item.get("parent_work_package_id"),
+                    start_date=item.get("start_date"),
+                    due_date=item.get("due_date"),
+                    confirm=confirm,
+                )
+                if not result.ready:
+                    item_results.append(BulkWorkPackageItemResult(index=i, success=False, error=result.message, result=result))
+                else:
+                    item_results.append(BulkWorkPackageItemResult(index=i, success=True, error=None, result=result))
+            except Exception as exc:
+                item_results.append(BulkWorkPackageItemResult(index=i, success=False, error=str(exc), result=None))
+
+        succeeded = sum(1 for r in item_results if r.success)
+        failed = len(item_results) - succeeded
+        requires_confirmation = not confirm and failed == 0
+        if confirm:
+            message = f"{succeeded} of {len(items)} work packages created successfully." if failed == 0 else f"{succeeded} created, {failed} failed."
+        else:
+            message = f"Validated {succeeded} of {len(items)} work packages. Call again with confirm=true to create them." if failed == 0 else f"{succeeded} validated, {failed} failed validation."
+        return BulkWorkPackageWriteResult(
+            action="bulk_create",
+            confirmed=confirm and failed == 0,
+            requires_confirmation=requires_confirmation,
+            total=len(items),
+            succeeded=succeeded,
+            failed=failed,
+            message=message,
+            items=item_results,
+        )
+
+    async def bulk_update_work_packages(
+        self,
+        *,
+        items: list[dict[str, Any]],
+        confirm: bool = False,
+    ) -> BulkWorkPackageWriteResult:
+        item_results: list[BulkWorkPackageItemResult] = []
+        for i, item in enumerate(items):
+            try:
+                result = await self.update_work_package(
+                    work_package_id=item["work_package_id"],
+                    subject=item.get("subject"),
+                    description=item.get("description"),
+                    type=item.get("type"),
+                    version=item.get("version"),
+                    project_phase=item.get("project_phase"),
+                    status=item.get("status"),
+                    assignee=item.get("assignee"),
+                    responsible=item.get("responsible"),
+                    priority=item.get("priority"),
+                    category=item.get("category"),
+                    custom_fields=item.get("custom_fields"),
+                    parent_work_package_id=item.get("parent_work_package_id"),
+                    start_date=item.get("start_date"),
+                    due_date=item.get("due_date"),
+                    confirm=confirm,
+                )
+                if not result.ready:
+                    item_results.append(BulkWorkPackageItemResult(index=i, success=False, error=result.message, result=result))
+                else:
+                    item_results.append(BulkWorkPackageItemResult(index=i, success=True, error=None, result=result))
+            except Exception as exc:
+                item_results.append(BulkWorkPackageItemResult(index=i, success=False, error=str(exc), result=None))
+
+        succeeded = sum(1 for r in item_results if r.success)
+        failed = len(item_results) - succeeded
+        requires_confirmation = not confirm and failed == 0
+        if confirm:
+            message = f"{succeeded} of {len(items)} work packages updated successfully." if failed == 0 else f"{succeeded} updated, {failed} failed."
+        else:
+            message = f"Validated {succeeded} of {len(items)} work packages. Call again with confirm=true to update them." if failed == 0 else f"{succeeded} validated, {failed} failed validation."
+        return BulkWorkPackageWriteResult(
+            action="bulk_update",
+            confirmed=confirm and failed == 0,
+            requires_confirmation=requires_confirmation,
+            total=len(items),
+            succeeded=succeeded,
+            failed=failed,
+            message=message,
+            items=item_results,
         )
 
     async def add_work_package_comment(
@@ -2888,7 +2981,7 @@ class OpenProjectClient:
         language: str | None = None,
         confirm: bool = False,
     ) -> UserWriteResult:
-        self._ensure_write_enabled("membership")
+        self._ensure_write_enabled("admin")
         payload: dict[str, Any] = {
             "login": login,
             "email": email,
@@ -2939,7 +3032,7 @@ class OpenProjectClient:
         language: str | None = None,
         confirm: bool = False,
     ) -> UserWriteResult:
-        self._ensure_write_enabled("membership")
+        self._ensure_write_enabled("admin")
         payload: dict[str, Any] = {}
         if login is not None:
             payload["login"] = login
@@ -2985,7 +3078,7 @@ class OpenProjectClient:
         *,
         confirm: bool = False,
     ) -> UserWriteResult:
-        self._ensure_write_enabled("membership")
+        self._ensure_write_enabled("admin")
         payload = {"id": user_id}
         if self._preview_mode(confirm):
             return UserWriteResult(
@@ -3018,7 +3111,7 @@ class OpenProjectClient:
         *,
         confirm: bool = False,
     ) -> UserWriteResult:
-        self._ensure_write_enabled("membership")
+        self._ensure_write_enabled("admin")
         payload = {"id": user_id}
         if self._preview_mode(confirm):
             return UserWriteResult(
@@ -3052,7 +3145,7 @@ class OpenProjectClient:
         *,
         confirm: bool = False,
     ) -> UserWriteResult:
-        self._ensure_write_enabled("membership")
+        self._ensure_write_enabled("admin")
         payload = {"id": user_id}
         if self._preview_mode(confirm):
             return UserWriteResult(
@@ -3091,7 +3184,7 @@ class OpenProjectClient:
         user_ids: list[int] | None = None,
         confirm: bool = False,
     ) -> GroupWriteResult:
-        self._ensure_write_enabled("membership")
+        self._ensure_write_enabled("admin")
         body: dict[str, Any] = {"name": name}
         if user_ids:
             body["_links"] = {
@@ -3133,7 +3226,7 @@ class OpenProjectClient:
         remove_user_ids: list[int] | None = None,
         confirm: bool = False,
     ) -> GroupWriteResult:
-        self._ensure_write_enabled("membership")
+        self._ensure_write_enabled("admin")
         body: dict[str, Any] = {}
         if name is not None:
             body["name"] = name
@@ -3194,7 +3287,7 @@ class OpenProjectClient:
         *,
         confirm: bool = False,
     ) -> GroupWriteResult:
-        self._ensure_write_enabled("membership")
+        self._ensure_write_enabled("admin")
         payload = {"id": group_id}
         if self._preview_mode(confirm):
             return GroupWriteResult(
@@ -3322,9 +3415,86 @@ class OpenProjectClient:
             success_message="Grid created successfully.",
         )
 
+    async def update_grid(
+        self,
+        *,
+        grid_id: int,
+        name: str | None = None,
+        row_count: int | None = None,
+        column_count: int | None = None,
+        confirm: bool = False,
+    ) -> GridWriteResult:
+        current = await self._get(f"grids/{grid_id}")
+        project_ref = self._project_ref_from_scope_href(
+            current.get("_links", {}).get("scope", {}).get("href")
+        )
+        if project_ref is not None:
+            await self._get_project_payload(project_ref, write=True)
+        payload: dict[str, Any] = {}
+        if name is not None:
+            payload["name"] = name
+        if row_count is not None:
+            payload["rowCount"] = row_count
+        if column_count is not None:
+            payload["columnCount"] = column_count
+        form = await self._post(f"grids/{grid_id}/form", json_body=payload)
+        return await self._finalize_grid_write(
+            action="update",
+            confirm=confirm,
+            form=form,
+            write_path=f"grids/{grid_id}",
+            write_method="PATCH",
+            grid_id=grid_id,
+            preview_message="OpenProject validated the grid update. Ask for confirmation, then call again with confirm=true to write it.",
+            success_message="Grid updated successfully.",
+        )
+
+    async def delete_grid(
+        self,
+        *,
+        grid_id: int,
+        confirm: bool = False,
+    ) -> GridWriteResult:
+        current = await self._get(f"grids/{grid_id}")
+        project_ref = self._project_ref_from_scope_href(
+            current.get("_links", {}).get("scope", {}).get("href")
+        )
+        if project_ref is not None:
+            await self._get_project_payload(project_ref, write=True)
+        detail = self.normalize_grid(current)
+        scope = current.get("_links", {}).get("scope", {}).get("href")
+
+        if self._preview_mode(confirm, delete=True):
+            return GridWriteResult(
+                action="delete",
+                confirmed=False,
+                requires_confirmation=True,
+                ready=True,
+                message="OpenProject found the grid. Ask for confirmation, then call again with confirm=true to delete it.",
+                grid_id=detail.id,
+                scope=scope,
+                payload={"id": detail.id},
+                validation_errors={},
+                result=None,
+            )
+        self._ensure_write_enabled("project")
+        await self._delete(f"grids/{grid_id}")
+        return GridWriteResult(
+            action="delete",
+            confirmed=True,
+            requires_confirmation=False,
+            ready=True,
+            message="Grid deleted successfully.",
+            grid_id=detail.id,
+            scope=scope,
+            payload={"id": detail.id},
+            validation_errors={},
+            result=None,
+        )
+
     # --- User Preferences ---
 
-    async def get_my_preferences(self) -> "UserPreferences":
+    async def get_my_preferences(self) -> UserPreferences:
         payload = await self._get("my_preferences")
         return self.normalize_user_preferences(payload)
 
@@ -3337,7 +3507,7 @@ class OpenProjectClient:
         warn_on_leaving_unsaved: bool | None = None,
         auto_hide_popups: bool | None = None,
         confirm: bool = False,
-    ) -> "UserPreferencesWriteResult":
+    ) -> UserPreferencesWriteResult:
         body: dict[str, Any] = {}
         if lang is not None:
             body["lang"] = lang
@@ -3372,7 +3542,7 @@ class OpenProjectClient:
 
     # --- Text Rendering ---
 
-    async def render_text(self, *, text: str, format: str = "markdown") -> "RenderedText":
+    async def render_text(self, *, text: str, format: str = "markdown") -> RenderedText:
         """Render plain or markdown text to HTML via the OpenProject API."""
         endpoint = "render/markdown" if format == "markdown" else "render/plain"
         url = f"{self.settings.base_url}/api/v3/{endpoint}"
@@ -3396,7 +3566,7 @@ class OpenProjectClient:
 
     # --- Help Texts ---
 
-    async def list_help_texts(self) -> "HelpTextListResult":
+    async def list_help_texts(self) -> HelpTextListResult:
         payload = await self._get("help_texts")
         results = [
             self.normalize_help_text(item)
@@ -3405,13 +3575,13 @@ class OpenProjectClient:
         ]
         return HelpTextListResult(count=len(results), results=results)
 
-    async def get_help_text(self, help_text_id: int) -> "HelpTextSummary":
+    async def get_help_text(self, help_text_id: int) -> HelpTextSummary:
         payload = await self._get(f"help_texts/{help_text_id}")
         return self.normalize_help_text(payload)
 
     # --- Work Schedule / Days ---
 
-    async def list_working_days(self) -> "WorkingDayListResult":
+    async def list_working_days(self) -> WorkingDayListResult:
         """List the Mon–Sun working-day configuration (7 entries)."""
         payload = await self._get("days/week")
         results = [
@@ -3421,7 +3591,7 @@ class OpenProjectClient:
         ]
         return WorkingDayListResult(count=len(results), results=results)
 
-    async def list_non_working_days(self, *, year: int | None = None) -> "NonWorkingDayListResult":
+    async def list_non_working_days(self, *, year: int | None = None) -> NonWorkingDayListResult:
         """List non-working days (public holidays / closures) for the given year."""
         params: dict[str, str] = {}
         if year is not None:
@@ -3438,7 +3608,7 @@ class OpenProjectClient:
 
     # --- Custom Options ---
 
-    async def get_custom_option(self, custom_option_id: int) -> "CustomOptionSummary":
+    async def get_custom_option(self, custom_option_id: int) -> CustomOptionSummary:
         """Fetch a single custom field option value by id."""
         payload = await self._get(f"custom_options/{custom_option_id}")
         return CustomOptionSummary(
@@ -3472,7 +3642,7 @@ class OpenProjectClient:
         relation_type: str | None = None,
         description: str | None = None,
         confirm: bool = False,
-    ) -> "RelationUpdateResult":
+    ) -> RelationUpdateResult:
         """Update the type or description of an existing relation."""
         current = await self._get(f"relations/{relation_id}")
         existing = self.normalize_relation(current)
@@ -4465,7 +4635,6 @@ class OpenProjectClient:
         if isinstance(resource_href, str) and "work_packages/" in resource_href:
             work_package_id = _id_from_href(resource_href)
             work_package_subject = _link_title(resource_link)
-        details = payload.get("_embedded", {}).get("details", [])
         read_ian = payload.get("readIAN")
         if read_ian is None:
             read_ian = bool(payload.get("read"))
@@ -4515,7 +4684,7 @@ class OpenProjectClient:
             url=self._api_href(f"grids/{grid_id}"),
         )
 
-    def normalize_user_preferences(self, payload: dict[str, Any]) -> "UserPreferences":
+    def normalize_user_preferences(self, payload: dict[str, Any]) -> UserPreferences:
         return UserPreferences(
             id=payload.get("id"),
             lang=payload.get("lang"),
@@ -4527,7 +4696,7 @@ class OpenProjectClient:
             updated_at=payload.get("updatedAt"),
         )
 
-    def normalize_help_text(self, payload: dict[str, Any]) -> "HelpTextSummary":
+    def normalize_help_text(self, payload: dict[str, Any]) -> HelpTextSummary:
         return HelpTextSummary(
             id=int(payload["id"]),
             attribute_name=payload.get("attribute") or payload.get("attributeName"),
@@ -4539,14 +4708,14 @@ class OpenProjectClient:
             ),
         )
 
-    def normalize_working_day(self, payload: dict[str, Any]) -> "WorkingDay":
+    def normalize_working_day(self, payload: dict[str, Any]) -> WorkingDay:
         return WorkingDay(
             name=payload.get("name", ""),
             day_of_week=int(payload.get("dayOfWeek", 0)),
             working=bool(payload.get("working", True)),
         )
 
-    def normalize_non_working_day(self, payload: dict[str, Any]) -> "NonWorkingDay":
+    def normalize_non_working_day(self, payload: dict[str, Any]) -> NonWorkingDay:
         return NonWorkingDay(
             date=payload.get("date", ""),
             name=payload.get("name"),
@@ -5208,6 +5377,8 @@ class OpenProjectClient:
         confirm: bool,
         form: dict[str, Any],
         write_path: str,
+        write_method: str = "POST",
+        grid_id: int | None = None,
         preview_message: str | None = None,
         success_message: str | None = None,
     ) -> GridWriteResult:
@@ -5224,7 +5395,7 @@ class OpenProjectClient:
                 requires_confirmation=not confirm,
                 ready=False,
                 message="OpenProject rejected the proposed grid changes. Fix the validation errors before confirming.",
-                grid_id=None,
+                grid_id=grid_id,
                 scope=scope,
                 payload=payload,
                 validation_errors=validation_errors,
@@ -5239,7 +5410,7 @@ class OpenProjectClient:
                 ready=True,
                 message=preview_message
                 or "OpenProject validated the grid change. Ask for confirmation, then call again with confirm=true to write it.",
-                grid_id=None,
+                grid_id=grid_id,
                 scope=scope,
                 payload=payload,
                 validation_errors={},
@@ -5247,7 +5418,10 @@ class OpenProjectClient:
             )
 
         self._ensure_write_enabled("project")
-        response = await self._post(write_path, json_body=payload)
+        if write_method == "PATCH":
+            response = await self._patch(write_path, json_body=payload)
+        else:
+            response = await self._post(write_path, json_body=payload)
         detail = self.normalize_grid(response)
         return GridWriteResult(
             action=action,
@@ -5345,9 +5519,8 @@ class OpenProjectClient:
             href = item.get("href")
             title = _trim_text(item.get("title"), limit=SUBJECT_LIMIT)
             item_id = _slug_from_href(href)
-            if raw_value.casefold() == (title or "").casefold() or raw_value == item_id:
-                if href:
-                    return href
+            if (raw_value.casefold() == (title or "").casefold() or raw_value == item_id) and href:
+                return href
         raise InvalidInputError(f"OpenProject project status '{raw_value}' is not allowed.")
 
     async def _finalize_project_write(
@@ -5477,6 +5650,13 @@ class OpenProjectClient:
         )
 
     def _ensure_write_enabled(self, scope: str) -> None:
+        if scope == "admin":
+            if not self.settings.enable_admin_write:
+                raise PermissionDeniedError(
+                    "User/group management is disabled. "
+                    "Set OPENPROJECT_ENABLE_ADMIN_WRITE=true to allow it."
+                )
+            return
         if self.settings.write_enabled(scope):
             return
         scope_env = {
@@ -5485,10 +5665,10 @@ class OpenProjectClient:
             "membership": "OPENPROJECT_ENABLE_MEMBERSHIP_WRITE",
             "version": "OPENPROJECT_ENABLE_VERSION_WRITE",
             "board": "OPENPROJECT_ENABLE_BOARD_WRITE",
-        }.get(scope, "OPENPROJECT_ENABLE_WRITE")
+        }.get(scope, "the relevant OPENPROJECT_ENABLE_*_WRITE flag")
         raise PermissionDeniedError(
             f"OpenProject {scope.replace('_', ' ')} write support is disabled. "
-            f"Set {scope_env}=true or OPENPROJECT_ENABLE_WRITE=true to allow confirmed writes."
+            f"Set {scope_env}=true to allow confirmed writes."
         )
 
     def _ensure_read_enabled(self, scope: str) -> None:
@@ -5502,10 +5682,10 @@ class OpenProjectClient:
             "work_package": "OPENPROJECT_ENABLE_WORK_PACKAGE_READ",
             "version": "OPENPROJECT_ENABLE_VERSION_READ",
             "board": "OPENPROJECT_ENABLE_BOARD_READ",
-        }.get(scope, "OPENPROJECT_ENABLE_READ")
+        }.get(scope, "the relevant OPENPROJECT_ENABLE_*_READ flag")
         raise PermissionDeniedError(
             f"OpenProject {scope.replace('_', ' ')} read support is disabled. "
-            f"Set {scope_env}=true or OPENPROJECT_ENABLE_READ=true to allow reads."
+            f"Set {scope_env}=true to allow reads."
         )
 
     def _ensure_project_allowed(self, project_ref: str, *, payload: dict[str, Any] | None = None) -> None:
@@ -5535,9 +5715,8 @@ class OpenProjectClient:
 
     def _ensure_project_write_candidate_allowed(self, *, identifier: str | None, name: str | None) -> None:
         candidates = self._project_candidates(identifier=identifier, name=name)
-        if self.settings.allowed_projects and not _scope_allows_all(self.settings.allowed_projects):
-            if not _scope_matches_candidates(self.settings.allowed_projects, candidates):
-                raise PermissionDeniedError("OpenProject access to this project is disabled by OPENPROJECT_ALLOWED_PROJECTS_READ.")
+        if self.settings.allowed_projects and not _scope_allows_all(self.settings.allowed_projects) and not _scope_matches_candidates(self.settings.allowed_projects, candidates):
+            raise PermissionDeniedError("OpenProject access to this project is disabled by OPENPROJECT_ALLOWED_PROJECTS_READ.")
         if self.settings.project_write_scope_allows_none:
             raise PermissionDeniedError(
                 "OpenProject writes to this project are disabled by OPENPROJECT_ALLOWED_PROJECTS_WRITE."

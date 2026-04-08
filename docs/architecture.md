@@ -91,16 +91,21 @@ That is why a large part of the write path lives in `client.py` helpers instead 
 
 The project aims for a defense-in-depth model rather than a single global switch.
 
-Key controls:
+The model has two independent layers:
 
-- `OPENPROJECT_ENABLE_READ`
+**Layer 1 — MCP server gates** (env var flags, checked before any HTTP call):
+
 - scoped `OPENPROJECT_ENABLE_*_READ`
-- scoped `OPENPROJECT_ENABLE_*_WRITE`
-- `OPENPROJECT_ALLOWED_PROJECTS_READ`
-- `OPENPROJECT_ALLOWED_PROJECTS_WRITE`
-- `OPENPROJECT_HIDE_<ENTITY>_FIELDS`
-- `OPENPROJECT_HIDE_CUSTOM_FIELDS`
+- scoped `OPENPROJECT_ENABLE_*_WRITE` / `OPENPROJECT_ENABLE_ADMIN_WRITE`
+- `OPENPROJECT_ALLOWED_PROJECTS_READ` / `OPENPROJECT_ALLOWED_PROJECTS_WRITE`
+- `OPENPROJECT_HIDE_<ENTITY>_FIELDS` / `OPENPROJECT_HIDE_CUSTOM_FIELDS`
 - preview-by-default writes unless auto-confirm is explicitly enabled
+
+**Layer 2 — OpenProject server permissions** (enforced by the API, not the MCP):
+
+The MCP server acts on behalf of the user whose API token is configured. If that user lacks the required role or project permission in OpenProject, the API returns HTTP 403 regardless of what the MCP flags allow. The MCP maps this to a `PermissionDeniedError` which is surfaced as a tool error to the agent. The agent can recognize the cause from the error message and stop attempting the operation.
+
+This means the MCP flags are a ceiling — they restrict what the agent can attempt — but OpenProject's own role system is the final authority. Setting `ENABLE_WORK_PACKAGE_WRITE=true` does not grant the configured user any permissions they do not already have in OpenProject.
 
 Important properties of the current model:
 
@@ -108,6 +113,8 @@ Important properties of the current model:
 - an explicit empty `OPENPROJECT_ALLOWED_PROJECTS_WRITE` disables project-scoped writes
 - hidden fields are masked on reads and rejected on writes
 - destructive operations still use the same project-scope checks as non-destructive writes
+- instance-global admin operations (user/group management) require explicit `OPENPROJECT_ENABLE_ADMIN_WRITE=true` — never activated by project-scoped write flags
+- all other metadata tools (statuses, types, priorities, notifications, …) are always available and not gated by any read flag
 
 ## Supported scope (Community Edition)
 
@@ -116,7 +123,7 @@ The MCP targets OpenProject **Community Edition** only. The following feature ar
 - Projects, memberships, roles, principals, project admin context, project configuration
 - Work packages, statuses, priorities, types, categories (read), relations, subtasks, attachments, watchers, activities
 - Versions, boards/queries, views
-- News, documents (read/update only), wiki pages (read only)
+- News, documents (read/update only), wiki pages (single-page fetch only — no list endpoint in OpenProject v3)
 - Time entries, Nextcloud file links (CE feature, degrades gracefully)
 - Users, groups, user preferences, notifications
 - Grids, help texts, working days, custom options, text rendering
@@ -142,7 +149,7 @@ API stubs with no POST/DELETE endpoint in CE (read/update only, matching OpenPro
 | Feature | Available operations |
 |---|---|
 | Documents | GET list, GET single, PATCH update |
-| Wiki pages | GET list, GET single |
+| Wiki pages | GET single only — the collection endpoint (`/api/v3/projects/{id}/wiki_pages`) is not implemented in OpenProject v3; `list_wiki_pages` has been removed |
 | Categories | GET list, GET single |
 
 ## Design tradeoffs

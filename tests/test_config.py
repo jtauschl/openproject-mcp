@@ -10,8 +10,6 @@ def test_settings_from_env_loads_and_normalizes_values() -> None:
             {
                 "OPENPROJECT_BASE_URL": "https://op.example.com/",
                 "OPENPROJECT_API_TOKEN": "token-value",
-                "OPENPROJECT_ENABLE_READ": "true",
-                "OPENPROJECT_ENABLE_WRITE": "true",
                 "OPENPROJECT_ALLOWED_PROJECTS_READ": "mcp-test, openproject-mcp",
                 "OPENPROJECT_ALLOWED_PROJECTS_WRITE": "mcp-test",
                 "OPENPROJECT_ENABLE_PROJECT_READ": "true",
@@ -33,8 +31,6 @@ def test_settings_from_env_loads_and_normalizes_values() -> None:
 
     assert settings.base_url == "https://op.example.com"
     assert settings.api_base_url == "https://op.example.com/api/v3"
-    assert settings.enable_read is True
-    assert settings.enable_write is True
     assert settings.allowed_projects == ("mcp-test", "openproject-mcp")
     assert settings.allowed_write_projects == ("mcp-test",)
     assert settings.allowed_write_projects_configured is True
@@ -124,18 +120,19 @@ def test_settings_from_env_per_scope_read_flags_restrict_when_global_read_enable
     assert settings.read_enabled("membership") is False
 
 
-def test_settings_from_env_global_read_false_disables_all_scopes() -> None:
+def test_settings_from_env_scoped_read_flags_disable_chains_independently() -> None:
     settings = Settings.from_env(
         {
             "OPENPROJECT_BASE_URL": "https://op.example.com",
             "OPENPROJECT_API_TOKEN": "token-value",
-            "OPENPROJECT_ENABLE_READ": "false",
+            "OPENPROJECT_ENABLE_PROJECT_READ": "false",
+            "OPENPROJECT_ENABLE_WORK_PACKAGE_READ": "false",
         }
     )
 
     assert settings.read_enabled("project") is False
     assert settings.read_enabled("work_package") is False
-    assert settings.read_enabled("membership") is False
+    assert settings.read_enabled("membership") is True  # not disabled
 
 
 def test_settings_from_env_scoped_write_flag_enables_chain_when_global_write_disabled() -> None:
@@ -217,7 +214,7 @@ def test_settings_from_env_rejects_invalid_bool_value() -> None:
             {
                 "OPENPROJECT_BASE_URL": "https://op.example.com",
                 "OPENPROJECT_API_TOKEN": "token-value",
-                "OPENPROJECT_ENABLE_READ": "ja",
+                "OPENPROJECT_ENABLE_PROJECT_READ": "ja",
             }
         )
 

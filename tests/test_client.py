@@ -5,7 +5,13 @@ import json
 import httpx
 import pytest
 
-from openproject_mcp.client import AuthenticationError, InvalidInputError, OpenProjectClient, PermissionDeniedError, _extract_formattable_text
+from openproject_mcp.client import (
+    AuthenticationError,
+    InvalidInputError,
+    OpenProjectClient,
+    PermissionDeniedError,
+    _extract_formattable_text,
+)
 from openproject_mcp.config import Settings
 
 
@@ -13,8 +19,6 @@ def make_settings() -> Settings:
     return Settings(
         base_url="https://op.example.com",
         api_token="token",
-        enable_read=True,
-        enable_write=False,
         timeout=12,
         verify_ssl=True,
         default_page_size=20,
@@ -52,8 +56,6 @@ async def test_add_comment_requires_write_gate_not_delete_gate() -> None:
     settings = Settings(
         base_url="https://op.example.com",
         api_token="token",
-        enable_read=True,
-        enable_write=False,
         timeout=12,
         verify_ssl=True,
         default_page_size=1,
@@ -83,8 +85,6 @@ async def test_board_create_respects_allowed_write_projects() -> None:
     settings = Settings(
         base_url="https://op.example.com",
         api_token="token",
-        enable_read=True,
-        enable_write=False,
         timeout=12,
         verify_ssl=True,
         default_page_size=20,
@@ -122,8 +122,6 @@ async def test_create_time_entry_with_work_package_respects_allowed_write_projec
     settings = Settings(
         base_url="https://op.example.com",
         api_token="token",
-        enable_read=True,
-        enable_write=False,
         timeout=12,
         verify_ssl=True,
         default_page_size=20,
@@ -216,8 +214,6 @@ async def test_project_wildcard_patterns_match_identifier_and_title() -> None:
     settings = Settings(
         base_url="https://op.example.com",
         api_token="token",
-        enable_read=True,
-        enable_write=False,
         timeout=12,
         verify_ssl=True,
         default_page_size=20,
@@ -258,8 +254,6 @@ async def test_get_membership_respects_project_scope() -> None:
     settings = Settings(
         base_url="https://op.example.com",
         api_token="token",
-        enable_read=True,
-        enable_write=False,
         timeout=12,
         verify_ssl=True,
         default_page_size=20,
@@ -300,8 +294,6 @@ async def test_delete_membership_allows_identifier_write_scope() -> None:
     settings = Settings(
         base_url="https://op.example.com",
         api_token="token",
-        enable_read=True,
-        enable_write=False,
         timeout=12,
         verify_ssl=True,
         default_page_size=20,
@@ -346,8 +338,6 @@ async def test_delete_news_allows_identifier_write_scope() -> None:
     settings = Settings(
         base_url="https://op.example.com",
         api_token="token",
-        enable_read=True,
-        enable_write=False,
         timeout=12,
         verify_ssl=True,
         default_page_size=20,
@@ -394,8 +384,6 @@ async def test_delete_time_entry_allows_identifier_write_scope() -> None:
     settings = Settings(
         base_url="https://op.example.com",
         api_token="token",
-        enable_read=True,
-        enable_write=False,
         timeout=12,
         verify_ssl=True,
         default_page_size=20,
@@ -440,8 +428,6 @@ async def test_delete_version_allows_identifier_write_scope() -> None:
     settings = Settings(
         base_url="https://op.example.com",
         api_token="token",
-        enable_read=True,
-        enable_write=False,
         timeout=12,
         verify_ssl=True,
         default_page_size=20,
@@ -487,8 +473,6 @@ async def test_delete_board_allows_identifier_write_scope() -> None:
     settings = Settings(
         base_url="https://op.example.com",
         api_token="token",
-        enable_read=True,
-        enable_write=False,
         timeout=12,
         verify_ssl=True,
         default_page_size=20,
@@ -578,8 +562,6 @@ async def test_allowed_projects_and_hidden_fields_filter_read_outputs() -> None:
     settings = Settings(
         base_url="https://op.example.com",
         api_token="token",
-        enable_read=True,
-        enable_write=False,
         timeout=12,
         verify_ssl=True,
         default_page_size=20,
@@ -637,8 +619,6 @@ async def test_chain_specific_read_flags_restrict_membership_reads_with_global_r
     settings = Settings(
         base_url="https://op.example.com",
         api_token="token",
-        enable_read=True,
-        enable_write=False,
         timeout=12,
         verify_ssl=True,
         default_page_size=20,
@@ -661,8 +641,6 @@ async def test_hidden_fields_support_wildcards_for_principal_reads() -> None:
         Settings(
             base_url="https://op.example.com",
             api_token="token",
-            enable_read=True,
-            enable_write=False,
             timeout=12,
             verify_ssl=True,
             default_page_size=20,
@@ -700,8 +678,6 @@ async def test_hidden_project_field_is_rejected_on_write() -> None:
     settings = Settings(
         base_url="https://op.example.com",
         api_token="token",
-        enable_read=True,
-        enable_write=False,
         timeout=12,
         verify_ssl=True,
         default_page_size=20,
@@ -733,8 +709,6 @@ async def test_hidden_document_field_is_rejected_on_write() -> None:
     settings = Settings(
         base_url="https://op.example.com",
         api_token="token",
-        enable_read=True,
-        enable_write=False,
         timeout=12,
         verify_ssl=True,
         default_page_size=20,
@@ -766,8 +740,6 @@ async def test_hidden_work_package_field_is_rejected_on_write() -> None:
     settings = Settings(
         base_url="https://op.example.com",
         api_token="token",
-        enable_read=True,
-        enable_write=False,
         timeout=12,
         verify_ssl=True,
         default_page_size=20,
@@ -797,8 +769,6 @@ async def test_hidden_activity_field_is_rejected_on_write() -> None:
         Settings(
             base_url="https://op.example.com",
             api_token="token",
-            enable_read=True,
-            enable_write=False,
             timeout=12,
             verify_ssl=True,
             default_page_size=20,
@@ -829,8 +799,6 @@ async def test_hidden_time_entry_field_is_rejected_on_write() -> None:
         Settings(
             base_url="https://op.example.com",
             api_token="token",
-            enable_read=True,
-            enable_write=False,
             timeout=12,
             verify_ssl=True,
             default_page_size=20,
@@ -868,8 +836,6 @@ async def test_hidden_custom_field_is_rejected_on_write() -> None:
     settings = Settings(
         base_url="https://op.example.com",
         api_token="token",
-        enable_read=True,
-        enable_write=False,
         timeout=12,
         verify_ssl=True,
         default_page_size=20,
@@ -1025,8 +991,6 @@ async def test_create_work_package_returns_confirmation_preview_before_writing()
     settings = Settings(
         base_url="https://op.example.com",
         api_token="token",
-        enable_read=True,
-        enable_write=False,
         timeout=12,
         verify_ssl=True,
         default_page_size=1,
@@ -1115,8 +1079,7 @@ async def test_update_work_package_writes_after_confirmation_when_enabled() -> N
     settings = Settings(
         base_url=settings.base_url,
         api_token=settings.api_token,
-        enable_read=settings.enable_read,
-        enable_write=True,
+        enable_work_package_write=True,
         timeout=settings.timeout,
         verify_ssl=settings.verify_ssl,
         default_page_size=settings.default_page_size,
@@ -1166,8 +1129,6 @@ async def test_delete_work_package_requires_confirmation_preview() -> None:
     settings = Settings(
         base_url="https://op.example.com",
         api_token="token",
-        enable_read=True,
-        enable_write=False,
         timeout=12,
         verify_ssl=True,
         default_page_size=1,
@@ -1216,8 +1177,7 @@ async def test_delete_work_package_deletes_when_enabled_and_confirmed() -> None:
     settings = Settings(
         base_url=settings.base_url,
         api_token=settings.api_token,
-        enable_read=settings.enable_read,
-        enable_write=True,
+        enable_work_package_write=True,
         timeout=settings.timeout,
         verify_ssl=settings.verify_ssl,
         default_page_size=settings.default_page_size,
@@ -1263,8 +1223,7 @@ async def test_delete_work_package_auto_confirms_with_write_auto_confirm() -> No
     settings = Settings(
         base_url="https://op.example.com",
         api_token="token",
-        enable_read=True,
-        enable_write=True,
+        enable_work_package_write=True,
         timeout=12,
         verify_ssl=True,
         default_page_size=20,
@@ -1311,8 +1270,6 @@ async def test_delete_work_package_requires_write_enablement() -> None:
     settings = Settings(
         base_url="https://op.example.com",
         api_token="token",
-        enable_read=True,
-        enable_write=False,
         timeout=12,
         verify_ssl=True,
         default_page_size=20,
@@ -1362,8 +1319,7 @@ async def test_add_work_package_comment_writes_after_confirmation_when_enabled()
     settings = Settings(
         base_url=settings.base_url,
         api_token=settings.api_token,
-        enable_read=settings.enable_read,
-        enable_write=True,
+        enable_work_package_write=True,
         timeout=settings.timeout,
         verify_ssl=settings.verify_ssl,
         default_page_size=settings.default_page_size,
@@ -1435,8 +1391,7 @@ async def test_create_relation_and_delete_relation_work_when_enabled() -> None:
     settings = Settings(
         base_url=settings.base_url,
         api_token=settings.api_token,
-        enable_read=settings.enable_read,
-        enable_write=True,
+        enable_work_package_write=True,
         timeout=settings.timeout,
         verify_ssl=settings.verify_ssl,
         default_page_size=settings.default_page_size,
@@ -1493,8 +1448,7 @@ async def test_delete_relation_auto_confirms_with_write_auto_confirm() -> None:
     settings = Settings(
         base_url="https://op.example.com",
         api_token="token",
-        enable_read=True,
-        enable_write=True,
+        enable_work_package_write=True,
         timeout=12,
         verify_ssl=True,
         default_page_size=20,
@@ -1553,8 +1507,6 @@ async def test_create_subtask_uses_parent_link_in_form_payload() -> None:
     settings = Settings(
         base_url="https://op.example.com",
         api_token="token",
-        enable_read=True,
-        enable_write=False,
         timeout=12,
         verify_ssl=True,
         default_page_size=1,
@@ -1673,8 +1625,6 @@ async def test_get_project_work_package_context_returns_schema_and_metadata() ->
     settings = Settings(
         base_url="https://op.example.com",
         api_token="token",
-        enable_read=True,
-        enable_write=False,
         timeout=12,
         verify_ssl=True,
         default_page_size=1,
@@ -1944,8 +1894,7 @@ async def test_get_project_configuration_and_copy_project() -> None:
     settings = Settings(
         base_url=settings.base_url,
         api_token=settings.api_token,
-        enable_read=settings.enable_read,
-        enable_write=True,
+        enable_project_write=True,
         timeout=settings.timeout,
         verify_ssl=settings.verify_ssl,
         default_page_size=settings.default_page_size,
@@ -2193,8 +2142,6 @@ async def test_job_status_documents_news_and_wiki() -> None:
     settings = Settings(
         base_url="https://op.example.com",
         api_token="token",
-        enable_read=True,
-        enable_write=False,
         timeout=12,
         verify_ssl=True,
         default_page_size=20,
@@ -2397,8 +2344,6 @@ async def test_time_entry_crud_and_activity_listing() -> None:
     settings = Settings(
         base_url="https://op.example.com",
         api_token="token",
-        enable_read=True,
-        enable_write=False,
         timeout=12,
         verify_ssl=True,
         default_page_size=20,
@@ -2503,8 +2448,6 @@ async def test_list_time_entry_activities_paginates_project_fallback() -> None:
     settings = Settings(
         base_url="https://op.example.com",
         api_token="token",
-        enable_read=True,
-        enable_write=False,
         timeout=12,
         verify_ssl=True,
         default_page_size=1,
@@ -2707,8 +2650,6 @@ async def test_global_list_work_packages_and_versions_respect_allowlist_ids() ->
     settings = Settings(
         base_url="https://op.example.com",
         api_token="token",
-        enable_read=True,
-        enable_write=False,
         timeout=12,
         verify_ssl=True,
         default_page_size=20,
@@ -2796,8 +2737,6 @@ async def test_create_time_entry_resolves_activity_from_project_form_context() -
     settings = Settings(
         base_url="https://op.example.com",
         api_token="token",
-        enable_read=True,
-        enable_write=False,
         timeout=12,
         verify_ssl=True,
         default_page_size=20,
@@ -2922,8 +2861,6 @@ async def test_project_scoped_reads_accept_numeric_project_ids_when_allowed_by_n
     settings = Settings(
         base_url="https://op.example.com",
         api_token="token",
-        enable_read=True,
-        enable_write=False,
         timeout=12,
         verify_ssl=True,
         default_page_size=20,
@@ -3110,8 +3047,6 @@ async def test_views_categories_and_attachments() -> None:
     settings = Settings(
         base_url="https://op.example.com",
         api_token="token",
-        enable_read=True,
-        enable_write=False,
         timeout=12,
         verify_ssl=True,
         default_page_size=20,
@@ -3256,8 +3191,7 @@ async def test_version_crud_uses_form_endpoints_and_commit_paths() -> None:
     settings = Settings(
         base_url="https://op.example.com",
         api_token="token",
-        enable_read=True,
-        enable_write=True,
+        enable_version_write=True,
         timeout=12,
         verify_ssl=True,
         default_page_size=20,
@@ -3439,8 +3373,6 @@ async def test_board_crud_uses_query_form_endpoints_and_project_filtering() -> N
     settings = Settings(
         base_url="https://op.example.com",
         api_token="token",
-        enable_read=True,
-        enable_write=False,
         timeout=12,
         verify_ssl=True,
         default_page_size=20,
@@ -3548,8 +3480,6 @@ async def test_create_grid_uses_form_endpoint_and_project_scope() -> None:
     settings = Settings(
         base_url="https://op.example.com",
         api_token="token",
-        enable_read=True,
-        enable_write=False,
         timeout=12,
         verify_ssl=True,
         default_page_size=20,
@@ -3932,7 +3862,18 @@ async def test_user_preferences_get_and_update() -> None:
             )
         raise AssertionError(f"Unexpected request: {request.method} {request.url}")
 
-    client = OpenProjectClient(make_settings(), transport=httpx.MockTransport(handler))
+    settings = make_settings()
+    settings = Settings(
+        base_url=settings.base_url,
+        api_token=settings.api_token,
+        timeout=settings.timeout,
+        verify_ssl=settings.verify_ssl,
+        default_page_size=settings.default_page_size,
+        max_page_size=settings.max_page_size,
+        max_results=settings.max_results,
+        log_level=settings.log_level,
+    )
+    client = OpenProjectClient(settings, transport=httpx.MockTransport(handler))
 
     prefs = await client.get_my_preferences()
     assert prefs.lang == "en"
@@ -3947,6 +3888,20 @@ async def test_user_preferences_get_and_update() -> None:
     assert updated.result.lang == "de"
     assert updated.result.time_zone == "America/New_York"
 
+    await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_update_my_preferences_needs_no_write_gate() -> None:
+    """update_my_preferences has no write gate — it works without any write flags."""
+    async def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/api/v3/my_preferences" and request.method == "PATCH":
+            return httpx.Response(200, json={"_type": "UserPreferences"}, request=request)
+        raise AssertionError(f"Unexpected request: {request.method} {request.url}")
+
+    client = OpenProjectClient(make_settings(), transport=httpx.MockTransport(handler))
+    result = await client.update_my_preferences(lang="de", confirm=True)
+    assert result.confirmed
     await client.aclose()
 
 
@@ -4113,8 +4068,6 @@ async def test_list_relations_and_update_relation() -> None:
     settings = Settings(
         base_url="https://op.example.com",
         api_token="token",
-        enable_read=True,
-        enable_write=False,
         timeout=12,
         verify_ssl=True,
         default_page_size=20,
@@ -4179,8 +4132,6 @@ async def test_create_project_returns_preview_when_not_confirmed() -> None:
     settings = Settings(
         base_url="https://op.example.com",
         api_token="token",
-        enable_read=True,
-        enable_write=False,
         enable_project_write=True,
         timeout=12,
         verify_ssl=True,
@@ -4223,8 +4174,6 @@ async def test_create_project_rejects_validation_error() -> None:
     settings = Settings(
         base_url="https://op.example.com",
         api_token="token",
-        enable_read=True,
-        enable_write=False,
         enable_project_write=True,
         timeout=12,
         verify_ssl=True,
@@ -4266,8 +4215,6 @@ async def test_delete_project_returns_preview_and_executes_when_confirmed() -> N
     settings = Settings(
         base_url="https://op.example.com",
         api_token="token",
-        enable_read=True,
-        enable_write=False,
         enable_project_write=True,
         timeout=12,
         verify_ssl=True,
@@ -4316,8 +4263,6 @@ async def test_create_version_returns_preview_when_not_confirmed() -> None:
     settings = Settings(
         base_url="https://op.example.com",
         api_token="token",
-        enable_read=True,
-        enable_write=False,
         enable_version_write=True,
         timeout=12,
         verify_ssl=True,
@@ -4363,8 +4308,6 @@ async def test_create_version_rejects_validation_error() -> None:
     settings = Settings(
         base_url="https://op.example.com",
         api_token="token",
-        enable_read=True,
-        enable_write=False,
         enable_version_write=True,
         timeout=12,
         verify_ssl=True,
@@ -4403,8 +4346,6 @@ async def test_create_board_returns_preview_when_not_confirmed() -> None:
     settings = Settings(
         base_url="https://op.example.com",
         api_token="token",
-        enable_read=True,
-        enable_write=False,
         enable_board_write=True,
         timeout=12,
         verify_ssl=True,
@@ -4444,8 +4385,6 @@ async def test_create_board_rejects_validation_error() -> None:
     settings = Settings(
         base_url="https://op.example.com",
         api_token="token",
-        enable_read=True,
-        enable_write=False,
         enable_board_write=True,
         timeout=12,
         verify_ssl=True,
@@ -4462,6 +4401,383 @@ async def test_create_board_rejects_validation_error() -> None:
     assert result.confirmed is False
     assert "name" in result.validation_errors
 
+    await client.aclose()
+
+
+def _make_grid_settings(extra: dict | None = None) -> Settings:
+    base = {
+        "base_url": "https://op.example.com",
+        "api_token": "token",
+        "timeout": 12,
+        "verify_ssl": True,
+        "default_page_size": 20,
+        "max_page_size": 50,
+        "max_results": 100,
+        "log_level": "WARNING",
+        "allowed_projects": ("demo",),
+        "enable_project_write": True,
+    }
+    if extra:
+        base.update(extra)
+    return Settings(**base)
+
+
+def _make_grid_payload(grid_id: int = 55) -> dict:
+    return {
+        "_type": "Grid",
+        "id": grid_id,
+        "rowCount": 2,
+        "columnCount": 3,
+        "createdAt": "2026-03-23T12:00:00Z",
+        "updatedAt": "2026-03-23T12:00:00Z",
+        "_links": {
+            "scope": {"href": "/projects/demo"},
+            "self": {"href": f"/api/v3/grids/{grid_id}"},
+        },
+    }
+
+
+@pytest.mark.asyncio
+async def test_update_grid_preview_mode() -> None:
+    async def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/api/v3/grids/55" and request.method == "GET":
+            return httpx.Response(200, json=_make_grid_payload(), request=request)
+        if request.url.path == "/api/v3/projects/demo":
+            return httpx.Response(200, json={"_type": "Project", "id": 1, "name": "Demo", "identifier": "demo", "_links": {}}, request=request)
+        if request.url.path == "/api/v3/grids/55/form":
+            body = json.loads(request.content)
+            return httpx.Response(200, json={"_embedded": {"payload": body, "validationErrors": {}}}, request=request)
+        raise AssertionError(f"Unexpected: {request.method} {request.url}")
+
+    client = OpenProjectClient(_make_grid_settings(), transport=httpx.MockTransport(handler))
+    result = await client.update_grid(grid_id=55, name="Renamed Grid", confirm=False)
+
+    assert result.action == "update"
+    assert result.confirmed is False
+    assert result.requires_confirmation is True
+    assert result.grid_id == 55
+    await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_update_grid_executes_with_confirm() -> None:
+    async def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/api/v3/grids/55" and request.method == "GET":
+            return httpx.Response(200, json=_make_grid_payload(), request=request)
+        if request.url.path == "/api/v3/projects/demo":
+            return httpx.Response(200, json={"_type": "Project", "id": 1, "name": "Demo", "identifier": "demo", "_links": {}}, request=request)
+        if request.url.path == "/api/v3/grids/55/form":
+            body = json.loads(request.content)
+            return httpx.Response(200, json={"_embedded": {"payload": {**body, "_links": {"scope": {"href": "/projects/demo"}}}, "validationErrors": {}}}, request=request)
+        if request.url.path == "/api/v3/grids/55" and request.method == "PATCH":
+            return httpx.Response(200, json={**_make_grid_payload(), "name": "Renamed Grid"}, request=request)
+        raise AssertionError(f"Unexpected: {request.method} {request.url}")
+
+    client = OpenProjectClient(_make_grid_settings(), transport=httpx.MockTransport(handler))
+    result = await client.update_grid(grid_id=55, name="Renamed Grid", confirm=True)
+
+    assert result.confirmed is True
+    assert result.grid_id == 55
+    assert result.result is not None
+    await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_delete_grid_preview_mode() -> None:
+    async def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/api/v3/grids/55" and request.method == "GET":
+            return httpx.Response(200, json=_make_grid_payload(), request=request)
+        if request.url.path == "/api/v3/projects/demo":
+            return httpx.Response(200, json={"_type": "Project", "id": 1, "name": "Demo", "identifier": "demo", "_links": {}}, request=request)
+        raise AssertionError(f"Unexpected: {request.method} {request.url}")
+
+    client = OpenProjectClient(_make_grid_settings(), transport=httpx.MockTransport(handler))
+    result = await client.delete_grid(grid_id=55, confirm=False)
+
+    assert result.action == "delete"
+    assert result.confirmed is False
+    assert result.requires_confirmation is True
+    assert result.grid_id == 55
+    await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_delete_grid_executes_with_confirm() -> None:
+    deleted = {"called": False}
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/api/v3/grids/55" and request.method == "GET":
+            return httpx.Response(200, json=_make_grid_payload(), request=request)
+        if request.url.path == "/api/v3/projects/demo":
+            return httpx.Response(200, json={"_type": "Project", "id": 1, "name": "Demo", "identifier": "demo", "_links": {}}, request=request)
+        if request.url.path == "/api/v3/grids/55" and request.method == "DELETE":
+            deleted["called"] = True
+            return httpx.Response(204, request=request)
+        raise AssertionError(f"Unexpected: {request.method} {request.url}")
+
+    client = OpenProjectClient(_make_grid_settings(), transport=httpx.MockTransport(handler))
+    result = await client.delete_grid(grid_id=55, confirm=True)
+
+    assert result.confirmed is True
+    assert result.grid_id == 55
+    assert deleted["called"] is True
+    await client.aclose()
+
+
+def _make_wp_form_response(request: httpx.Request, body: dict) -> httpx.Response:
+    return httpx.Response(
+        200,
+        json={"_type": "Form", "_embedded": {"payload": body, "validationErrors": {}}},
+        request=request,
+    )
+
+
+def _make_project_response(request: httpx.Request, project_id: int = 1) -> httpx.Response:
+    return httpx.Response(
+        200,
+        json={
+            "_type": "Project",
+            "id": project_id,
+            "name": "Demo",
+            "identifier": "demo",
+            "_links": {"versions": {"href": f"/api/v3/projects/{project_id}/versions"}},
+        },
+        request=request,
+    )
+
+
+@pytest.mark.asyncio
+async def test_bulk_create_work_packages_preview_mode() -> None:
+    call_count = {"form": 0}
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path in {"/api/v3/projects/demo", "/api/v3/projects/1"}:
+            return _make_project_response(request)
+        if request.url.path == "/api/v3/projects/1/types":
+            return httpx.Response(200, json={"_embedded": {"elements": [{"id": 7, "name": "Task"}]}}, request=request)
+        if request.url.path == "/api/v3/projects/1/versions":
+            return httpx.Response(200, json={"total": 0, "_embedded": {"elements": []}}, request=request)
+        if request.url.path == "/api/v3/projects/1/work_packages/form":
+            call_count["form"] += 1
+            body = json.loads(request.content)
+            return _make_wp_form_response(request, body)
+        raise AssertionError(f"Unexpected: {request.method} {request.url}")
+
+    client = OpenProjectClient(make_settings(), transport=httpx.MockTransport(handler))
+    result = await client.bulk_create_work_packages(
+        items=[
+            {"project": "demo", "type": "Task", "subject": "WP 1"},
+            {"project": "demo", "type": "Task", "subject": "WP 2"},
+        ],
+        confirm=False,
+    )
+
+    assert result.action == "bulk_create"
+    assert result.confirmed is False
+    assert result.requires_confirmation is True
+    assert result.total == 2
+    assert result.succeeded == 2
+    assert result.failed == 0
+    assert call_count["form"] == 2
+    assert all(r.success for r in result.items)
+    await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_bulk_create_work_packages_executes_with_confirm() -> None:
+    async def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path in {"/api/v3/projects/demo", "/api/v3/projects/1"}:
+            return _make_project_response(request)
+        if request.url.path == "/api/v3/projects/1/types":
+            return httpx.Response(200, json={"_embedded": {"elements": [{"id": 7, "name": "Task"}]}}, request=request)
+        if request.url.path == "/api/v3/projects/1/versions":
+            return httpx.Response(200, json={"total": 0, "_embedded": {"elements": []}}, request=request)
+        if request.url.path == "/api/v3/projects/1/work_packages/form":
+            body = json.loads(request.content)
+            return _make_wp_form_response(request, body)
+        if request.url.path == "/api/v3/work_packages" and request.method == "POST":
+            body = json.loads(request.content)
+            return httpx.Response(
+                201,
+                json={
+                    "id": 99,
+                    "subject": body.get("subject", ""),
+                    "lockVersion": 1,
+                    "_links": {
+                        "project": {"title": "Demo", "href": "/api/v3/projects/1"},
+                        "status": {"title": "New"},
+                        "type": {"title": "Task"},
+                        "activities": {"href": "/api/v3/work_packages/99/activities"},
+                        "relations": {"href": "/api/v3/work_packages/99/relations"},
+                    },
+                },
+                request=request,
+            )
+        raise AssertionError(f"Unexpected: {request.method} {request.url}")
+
+    settings = make_settings()
+    settings = Settings(
+        base_url=settings.base_url,
+        api_token=settings.api_token,
+        enable_work_package_write=True,
+        timeout=settings.timeout,
+        verify_ssl=settings.verify_ssl,
+        default_page_size=settings.default_page_size,
+        max_page_size=settings.max_page_size,
+        max_results=settings.max_results,
+        log_level=settings.log_level,
+    )
+    client = OpenProjectClient(settings, transport=httpx.MockTransport(handler))
+    result = await client.bulk_create_work_packages(
+        items=[
+            {"project": "demo", "type": "Task", "subject": "WP A"},
+            {"project": "demo", "type": "Task", "subject": "WP B"},
+        ],
+        confirm=True,
+    )
+
+    assert result.confirmed is True
+    assert result.succeeded == 2
+    assert result.failed == 0
+    await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_bulk_create_work_packages_partial_failure() -> None:
+    call_count = {"form": 0}
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path in {"/api/v3/projects/demo", "/api/v3/projects/1"}:
+            return _make_project_response(request)
+        if request.url.path == "/api/v3/projects/1/types":
+            return httpx.Response(200, json={"_embedded": {"elements": [{"id": 7, "name": "Task"}]}}, request=request)
+        if request.url.path == "/api/v3/projects/1/versions":
+            return httpx.Response(200, json={"total": 0, "_embedded": {"elements": []}}, request=request)
+        if request.url.path == "/api/v3/projects/1/work_packages/form":
+            call_count["form"] += 1
+            body = json.loads(request.content)
+            if body.get("subject") == "Bad WP":
+                return httpx.Response(
+                    200,
+                    json={"_type": "Form", "_embedded": {"payload": body, "validationErrors": {"subject": {"message": "too short"}}}},
+                    request=request,
+                )
+            return _make_wp_form_response(request, body)
+        raise AssertionError(f"Unexpected: {request.method} {request.url}")
+
+    client = OpenProjectClient(make_settings(), transport=httpx.MockTransport(handler))
+    result = await client.bulk_create_work_packages(
+        items=[
+            {"project": "demo", "type": "Task", "subject": "Good WP"},
+            {"project": "demo", "type": "Task", "subject": "Bad WP"},
+        ],
+        confirm=False,
+    )
+
+    assert result.total == 2
+    assert result.succeeded == 1
+    assert result.failed == 1
+    assert result.items[0].success is True
+    assert result.items[1].success is False
+    assert result.items[1].error is not None
+    await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_bulk_update_work_packages_preview_mode() -> None:
+    async def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/api/v3/work_packages/10" and request.method == "GET":
+            return httpx.Response(
+                200,
+                json={
+                    "id": 10, "subject": "Old 10", "lockVersion": 1,
+                    "_links": {
+                        "project": {"title": "Demo", "href": "/api/v3/projects/1"},
+                        "status": {"title": "New"}, "type": {"title": "Task"},
+                        "activities": {"href": "/api/v3/work_packages/10/activities"},
+                        "relations": {"href": "/api/v3/work_packages/10/relations"},
+                    },
+                },
+                request=request,
+            )
+        if request.url.path == "/api/v3/work_packages/20" and request.method == "GET":
+            return httpx.Response(
+                200,
+                json={
+                    "id": 20, "subject": "Old 20", "lockVersion": 2,
+                    "_links": {
+                        "project": {"title": "Demo", "href": "/api/v3/projects/1"},
+                        "status": {"title": "New"}, "type": {"title": "Task"},
+                        "activities": {"href": "/api/v3/work_packages/20/activities"},
+                        "relations": {"href": "/api/v3/work_packages/20/relations"},
+                    },
+                },
+                request=request,
+            )
+        if request.url.path in {"/api/v3/work_packages/10/form", "/api/v3/work_packages/20/form"}:
+            body = json.loads(request.content)
+            return _make_wp_form_response(request, body)
+        if request.url.path == "/api/v3/statuses":
+            return httpx.Response(200, json={"_embedded": {"elements": [{"id": 5, "name": "In progress"}]}}, request=request)
+        raise AssertionError(f"Unexpected: {request.method} {request.url}")
+
+    client = OpenProjectClient(make_settings(), transport=httpx.MockTransport(handler))
+    result = await client.bulk_update_work_packages(
+        items=[
+            {"work_package_id": 10, "subject": "New 10"},
+            {"work_package_id": 20, "status": "In progress"},
+        ],
+        confirm=False,
+    )
+
+    assert result.action == "bulk_update"
+    assert result.confirmed is False
+    assert result.requires_confirmation is True
+    assert result.total == 2
+    assert result.succeeded == 2
+    assert result.failed == 0
+    await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_bulk_update_work_packages_continues_after_partial_failure() -> None:
+    async def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/api/v3/work_packages/10" and request.method == "GET":
+            return httpx.Response(404, json={"_type": "Error", "message": "Not found"}, request=request)
+        if request.url.path == "/api/v3/work_packages/20" and request.method == "GET":
+            return httpx.Response(
+                200,
+                json={
+                    "id": 20, "subject": "Old 20", "lockVersion": 1,
+                    "_links": {
+                        "project": {"title": "Demo", "href": "/api/v3/projects/1"},
+                        "status": {"title": "New"}, "type": {"title": "Task"},
+                        "activities": {"href": "/api/v3/work_packages/20/activities"},
+                        "relations": {"href": "/api/v3/work_packages/20/relations"},
+                    },
+                },
+                request=request,
+            )
+        if request.url.path == "/api/v3/work_packages/20/form":
+            body = json.loads(request.content)
+            return _make_wp_form_response(request, body)
+        raise AssertionError(f"Unexpected: {request.method} {request.url}")
+
+    client = OpenProjectClient(make_settings(), transport=httpx.MockTransport(handler))
+    result = await client.bulk_update_work_packages(
+        items=[
+            {"work_package_id": 10, "subject": "Will fail"},
+            {"work_package_id": 20, "subject": "Should succeed"},
+        ],
+        confirm=False,
+    )
+
+    assert result.total == 2
+    assert result.succeeded == 1
+    assert result.failed == 1
+    assert result.items[0].success is False
+    assert result.items[0].error is not None
+    assert result.items[1].success is True
     await client.aclose()
 
 

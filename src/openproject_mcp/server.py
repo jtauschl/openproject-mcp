@@ -17,23 +17,24 @@ class AppContext:
     client: OpenProjectClient
 
 
-@asynccontextmanager
-async def app_lifespan(_: FastMCP) -> AsyncIterator[AppContext]:
-    settings = Settings.from_env()
-    configure_logging(settings.log_level)
-    client = OpenProjectClient(settings)
-    try:
-        yield AppContext(settings=settings, client=client)
-    finally:
-        await client.aclose()
+def create_app(settings: Settings) -> FastMCP:
+    @asynccontextmanager
+    async def app_lifespan(_: FastMCP) -> AsyncIterator[AppContext]:
+        configure_logging(settings.log_level)
+        client = OpenProjectClient(settings)
+        try:
+            yield AppContext(settings=settings, client=client)
+        finally:
+            await client.aclose()
 
-
-mcp = FastMCP("OpenProject MCP", json_response=True, lifespan=app_lifespan)
-register_tools(mcp)
+    mcp = FastMCP("OpenProject MCP", json_response=True, lifespan=app_lifespan)
+    register_tools(mcp, settings)
+    return mcp
 
 
 def main() -> None:
-    mcp.run(transport="stdio")
+    settings = Settings.from_env()
+    create_app(settings).run(transport="stdio")
 
 
 if __name__ == "__main__":

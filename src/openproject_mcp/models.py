@@ -421,6 +421,26 @@ class WorkPackageWriteResult:
 
 
 @dataclass
+class BulkWorkPackageItemResult:
+    index: int
+    success: bool
+    error: str | None
+    result: WorkPackageWriteResult | None
+
+
+@dataclass
+class BulkWorkPackageWriteResult:
+    action: str
+    confirmed: bool
+    requires_confirmation: bool
+    total: int
+    succeeded: int
+    failed: int
+    message: str
+    items: list[BulkWorkPackageItemResult]
+
+
+@dataclass
 class ActivityWriteResult:
     action: str
     confirmed: bool
@@ -1271,4 +1291,4 @@ class RelationUpdateResult:
     message: str
     relation_id: int | None
     payload: dict[str, Any]
-    result: "RelationSummary | None"
+    result: RelationSummary | None
